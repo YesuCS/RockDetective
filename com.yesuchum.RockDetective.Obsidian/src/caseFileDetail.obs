@@ -1,0 +1,508 @@
+<template>
+    <NotificationBox v-if="config.errorMessage" alertType="danger">{{ config.errorMessage }}</NotificationBox>
+
+    <template v-else-if="caseFile">
+        <NotificationBox v-if="config.followUpActionMessage" alertType="success">{{ config.followUpActionMessage }}</NotificationBox>
+
+        <NotificationBox v-if="notification" :alertType="notificationType" :dismissible="true" @dismiss="notification = ''">
+            {{ notification }}
+        </NotificationBox>
+
+        <Panel type="block" :headerSecondaryActions="headerSecondaryActions">
+            <template #title>
+                <span class="text-muted mr-2">{{ caseFile.caseNumber }}</span>{{ caseFile.title }}
+            </template>
+            <template #headerActions>
+                <span class="label label-info mr-1">{{ caseFile.categoryName }}</span>
+                <span class="label mr-1" :class="statusLabelClass">{{ statusNames[caseFile.status] }}</span>
+                <span class="label label-default mr-2">{{ caseFile.mode === 1 ? "Advanced" : "Simple" }}</span>
+            </template>
+
+            <div class="mb-3 d-flex flex-wrap" style="gap: 8px;">
+                <RockButton v-if="canEdit && caseFile.mode === 0 && !isLocked" :btnType="BtnType.Default" :btnSize="BtnSize.Small" @click="onUpgradeMode">
+                    <i class="ti ti-arrow-up-right mr-1"></i>Upgrade to Advanced
+                </RockButton>
+                <RockButton :btnType="BtnType.Default" :btnSize="BtnSize.Small" :disabled="isExportingPdf" @click="onExportPdf">
+                    <i class="ti ti-file-type-pdf mr-1"></i>{{ isExportingPdf ? "Generating..." : "Export PDF" }}
+                </RockButton>
+                <RockButton v-if="canEdit && !isLocked && caseFile.currentPhase === 9" :btnType="BtnType.Primary" :btnSize="BtnSize.Small" @click="isCloseModalOpen = true">
+                    <i class="ti ti-archive mr-1"></i>Close Case
+                </RockButton>
+                <RockButton v-if="canEdit && !isLocked" :btnType="BtnType.Default" :btnSize="BtnSize.Small" @click="onAbandon">
+                    <i class="ti ti-player-pause mr-1"></i>Abandon Case
+                </RockButton>
+                <RockButton v-if="canEdit && isAbandoned" :btnType="BtnType.Primary" :btnSize="BtnSize.Small" @click="onResume">
+                    <i class="ti ti-player-play mr-1"></i>Resume Case
+                </RockButton>
+                <RockButton v-if="canEdit && isClosed" :btnType="BtnType.Default" :btnSize="BtnSize.Small" @click="onReopen">
+                    <i class="ti ti-folder-open mr-1"></i>Reopen Case
+                </RockButton>
+                <RockButton v-if="canEdit && isClosed && caseFile.followUpDate && !caseFile.followUpConfirmedDateTime" :btnType="BtnType.Success" :btnSize="BtnSize.Small" @click="onConfirmFollowUp">
+                    <i class="ti ti-checks mr-1"></i>Fix Held
+                </RockButton>
+            </div>
+
+            <NotificationBox v-if="isClosed" alertType="info">
+                This case is closed{{ caseFile.closedDateTime ? " as of " + formatDate(caseFile.closedDateTime) : "" }}. Reopen it to make changes.
+            </NotificationBox>
+
+            <NotificationBox v-if="isAbandoned" alertType="warning">
+                This case is abandoned. Everything is preserved; resume it to pick the investigation back up where it left off.
+            </NotificationBox>
+
+            <PhaseStepper :definitions="config.phaseDefinitions"
+                          :phaseStates="caseFile.phaseStates"
+                          :currentPhase="caseFile.currentPhase"
+                          :isSimpleMode="caseFile.mode === 0"
+                          @phaseSelected="onPhaseSelected" />
+
+            <Panel title="Standing Principles" :hasCollapse="true" :isDrawerOpen="false">
+                <ol class="mb-2">
+                    <li v-for="principle in config.principles" :key="principle">{{ principle }}</li>
+                </ol>
+                <p class="text-muted mb-2">{{ config.mindsetGuidance }}</p>
+                <p class="mb-1"><strong>Where to look</strong></p>
+                <ul class="mb-0">
+                    <li v-for="tip in config.contextualTips" :key="tip" class="text-muted">{{ tip }}</li>
+                </ul>
+            </Panel>
+
+            <Panel :title="activeDefinition ? (activeDefinition.phase + '. ' + activeDefinition.name) : 'Phase'">
+                <p class="text-muted">{{ activeDefinition?.guidance }}</p>
+
+                <template v-if="activePhase === 2 && canEdit && !isLocked">
+                    <TextBox v-model="problemEdit.title" label="Title" />
+                    <TextBox v-model="problemEdit.problemStatement" label="Problem Statement" textMode="multiline" :rows="3" />
+                    <DropDownList v-model="problemEdit.categoryGuid" label="Category" :items="categoryItems" />
+                    <CheckBox v-model="problemEdit.attestNoUnverifiedDetails" label="This statement contains no unverified details" />
+                    <CheckBox v-model="problemEdit.attestNothingNotGermane" label="This statement contains nothing that is not germane" />
+                    <RockButton :btnType="BtnType.Default" :btnSize="BtnSize.Small" class="mb-3" @click="onSaveProblem">Save Problem Definition</RockButton>
+                </template>
+
+                <template v-else>
+                    <div v-if="activeDefinition?.prompts?.length" class="mb-3">
+                        <p class="mb-1"><strong>Work through these prompts</strong></p>
+                        <ul class="mb-0">
+                            <li v-for="prompt in activeDefinition.prompts" :key="prompt">{{ prompt }}</li>
+                        </ul>
+                    </div>
+
+                    <template v-if="isEditingNotes && canEdit && !isLocked">
+                        <TextBox v-model="phaseSummaryEdit"
+                                 label="Phase Notes"
+                                 textMode="multiline"
+                                 :rows="3"
+                                 help="Your working answers to the prompts above. Saved per phase." />
+                        <div class="d-flex mb-3" style="gap: 8px;">
+                            <RockButton :btnType="BtnType.Primary" :btnSize="BtnSize.Small" :disabled="isSavingNotes" @click="onSavePhaseNotes">
+                                {{ isSavingNotes ? "Saving..." : "Save Notes" }}
+                            </RockButton>
+                            <RockButton :btnType="BtnType.Default" :btnSize="BtnSize.Small" :disabled="isSavingNotes" @click="isEditingNotes = false">Cancel</RockButton>
+                        </div>
+                    </template>
+                    <template v-else>
+                        <div v-if="phaseSummary" class="mb-3">
+                            <p class="mb-1"><strong>Phase Notes</strong>
+                                <button v-if="canEdit && !isLocked" type="button" class="btn btn-xs btn-link" title="Edit notes" @click="onEditNotes"><i class="ti ti-pencil"></i></button>
+                            </p>
+                            <p style="white-space: pre-wrap;" class="mb-0">{{ phaseSummary }}</p>
+                        </div>
+                        <RockButton v-else-if="canEdit && !isLocked" :btnType="BtnType.Default" :btnSize="BtnSize.Small" class="mb-3" @click="onEditNotes">
+                            <i class="ti ti-notes mr-1"></i>Add Notes
+                        </RockButton>
+                    </template>
+                </template>
+
+                <template v-if="activeGate">
+                    <p class="mb-1 mt-2"><strong>Gate checklist</strong></p>
+                    <ul class="list-unstyled mb-3">
+                        <li v-for="requirement in activeGate.requirements" :key="requirement.description">
+                            <i class="ti mr-1" :class="requirement.isMet ? 'ti-circle-check text-success' : 'ti-circle-x text-danger'"></i>
+                            {{ requirement.description }}
+                        </li>
+                    </ul>
+                </template>
+
+                <div v-if="canEdit && !isLocked" class="d-flex" style="gap: 8px;">
+                    <RockButton v-if="activePhase < 9" :btnType="BtnType.Primary" :btnSize="BtnSize.Small" :disabled="!activeGate?.isMet" @click="onCompletePhase">
+                        Complete Phase<i class="ti ti-chevron-right ml-1"></i>
+                    </RockButton>
+                    <RockButton v-if="activePhase === 9" :btnType="BtnType.Primary" :btnSize="BtnSize.Small" @click="isCloseModalOpen = true">
+                        <i class="ti ti-archive mr-1"></i>Run Postmortem and Close
+                    </RockButton>
+                    <RockButton v-if="activePhase === 8" :btnType="BtnType.Default" :btnSize="BtnSize.Small" @click="onLoopBack">
+                        <i class="ti ti-refresh mr-1"></i>Loop Back to Facts
+                    </RockButton>
+                    <RockButton v-if="activePhase === 8 && config.isChampion && !hasChampionSignOff" :btnType="BtnType.Success" :btnSize="BtnSize.Small" @click="onChampionSignOff">
+                        <i class="ti ti-rosette-discount-check mr-1"></i>Champion Sign-Off
+                    </RockButton>
+                    <span v-if="activePhase === 8 && hasChampionSignOff" class="label label-success align-self-center">
+                        Champion signed off
+                    </span>
+                </div>
+            </Panel>
+
+            <div class="row">
+                <div class="col-md-6">
+                    <EntriesPanel :entries="caseFile.entries" :entryType="0" title="Fact List"
+                                  emptyText="Facts must be specific, correct, and pertinent only."
+                                  :canEdit="canEdit && !isLocked" @save="onSaveEntry" @delete="onDeleteEntry" />
+                    <EntriesPanel :entries="caseFile.entries" :entryType="1" title="Timeline"
+                                  emptyText="When did it start? When did it last work? What changed?"
+                                  :canEdit="canEdit && !isLocked" @save="onSaveEntry" @delete="onDeleteEntry" />
+                    <EntriesPanel :entries="caseFile.entries" :entryType="2" title="Evidence"
+                                  emptyText="Protect the crime scene: capture logs, configs, and screenshots before anything changes."
+                                  :canEdit="canEdit && !isLocked" @save="onSaveEntry" @delete="onDeleteEntry" />
+                </div>
+                <div class="col-md-6">
+                    <HypothesesPanel :hypotheses="caseFile.hypotheses" :canEdit="canEdit && !isLocked"
+                                     @save="onSaveHypothesis" @delete="onDeleteHypothesis" />
+                    <ExperimentsPanel :experiments="caseFile.experiments" :hypotheses="caseFile.hypotheses" :canEdit="canEdit && !isLocked"
+                                      @save="onSaveExperiment" @delete="onDeleteExperiment" />
+                    <ParticipantsPanel :participants="caseFile.participants" :ownerName="caseFile.ownerName" :canEdit="canEdit && !isLocked"
+                                       @save="onSaveParticipant" @delete="onDeleteParticipant"
+                                       @createRequest="onCreateRequest" @sendRequest="onSendRequest"
+                                       @recordStatement="onRecordStatement" @statementToFact="onStatementToFact"
+                                       @deleteStatement="onDeleteStatement" />
+                </div>
+            </div>
+        </Panel>
+
+        <Modal v-model="isAuditModalOpen" title="Audit Details">
+            <AuditDetail :entityTypeGuid="caseFileEntityTypeGuid" :entityKey="caseFile.idKey" />
+        </Modal>
+
+        <Modal v-model="isCloseModalOpen" title="Postmortem and Close" saveText="Close Case" :isSaveButtonDisabled="isClosing" @save="onCloseCase">
+            <RockForm>
+                <TextBox v-model="closeForm.impactSummary" label="Impact" textMode="multiline" :rows="2" rules="required" />
+                <TextBox v-model="closeForm.solutionSummary" label="Solution Summary" textMode="multiline" :rows="2" rules="required" />
+                <TextBox v-model="closeForm.contributingFactors" label="Contributing Factors" textMode="multiline" :rows="2" rules="required" />
+                <TextBox v-model="closeForm.lessonsLearned" label="Lessons Learned" textMode="multiline" :rows="2" rules="required" />
+                <TextBox v-model="closeForm.preventionMeasures" label="Prevention Measures" textMode="multiline" :rows="2" rules="required" />
+                <TextBox v-model="closeForm.actionItems" label="Action Items" textMode="multiline" :rows="2" rules="required" />
+                <DatePicker v-model="closeForm.followUpDate" label="Follow-Up Check Date (optional)"
+                            help="On this date, the owner is asked to confirm the fix held; one click reopens the case if it did not." />
+            </RockForm>
+        </Modal>
+    </template>
+</template>
+
+<script setup lang="ts">
+    import { ref, computed, reactive, watch } from "vue";
+    import NotificationBox from "@Obsidian/Controls/notificationBox.obs";
+    import Panel from "@Obsidian/Controls/panel.obs";
+    import Modal from "@Obsidian/Controls/modal.obs";
+    import RockForm from "@Obsidian/Controls/rockForm.obs";
+    import RockButton from "@Obsidian/Controls/rockButton.obs";
+    import TextBox from "@Obsidian/Controls/textBox.obs";
+    import DropDownList from "@Obsidian/Controls/dropDownList.obs";
+    import CheckBox from "@Obsidian/Controls/checkBox.obs";
+    import DatePicker from "@Obsidian/Controls/datePicker.obs";
+    import { BtnType } from "@Obsidian/Enums/Controls/btnType";
+    import { BtnSize } from "@Obsidian/Enums/Controls/btnSize";
+    import { AlertType } from "@Obsidian/Enums/Controls/alertType";
+    import { useConfigurationValues, useInvokeBlockAction } from "@Obsidian/Utility/block";
+    import { confirm } from "@Obsidian/Utility/dialogs";
+    import AuditDetail from "@Obsidian/Controls/auditDetail.obs";
+    import type { PanelAction } from "@Obsidian/Types/Controls/panelAction";
+    import { RockDateTime } from "@Obsidian/Utility/rockDateTime";
+    import type { ListItemBag } from "@Obsidian/ViewModels/Utility/listItemBag";
+    import PhaseStepper from "./CaseFileDetail/phaseStepper.partial.obs";
+    import EntriesPanel from "./CaseFileDetail/entriesPanel.partial.obs";
+    import HypothesesPanel from "./CaseFileDetail/hypothesesPanel.partial.obs";
+    import ExperimentsPanel from "./CaseFileDetail/experimentsPanel.partial.obs";
+    import ParticipantsPanel from "./CaseFileDetail/participantsPanel.partial.obs";
+    import {
+        statusNames,
+        downloadPdf,
+        type CaseBoardInitBag,
+        type CaseEntryBag,
+        type CaseFileBag,
+        type ExperimentBag,
+        type HypothesisBag,
+        type ParticipantBag,
+        type PdfResultBag
+    } from "./types.partial";
+
+    const config = useConfigurationValues<CaseBoardInitBag>();
+    const invokeBlockAction = useInvokeBlockAction();
+
+    const caseFile = ref<CaseFileBag | null>(config.caseFile ?? null);
+    const canEdit = config.canEdit;
+
+    const notification = ref("");
+    const notificationType = ref<string>(AlertType.Success);
+
+    const isClosed = computed(() => caseFile.value?.status === 3);
+    const isAbandoned = computed(() => caseFile.value?.status === 5);
+    const isLocked = computed(() => isClosed.value || isAbandoned.value);
+    const isAuditModalOpen = ref(false);
+    const caseFileEntityTypeGuid = "3B58FD75-80F4-47F7-BAE9-C401B55D89AA";
+
+    const headerSecondaryActions = computed<PanelAction[]>(() => {
+        const actions: PanelAction[] = [];
+
+        if (caseFile.value?.idKey) {
+            actions.push({
+                type: "default",
+                title: "Audit Details",
+                handler: () => {
+                    isAuditModalOpen.value = true;
+                }
+            });
+        }
+
+        return actions;
+    });
+
+    async function onAbandon(): Promise<void> {
+        const confirmed = await confirm("Abandon this case? Everything is preserved and it can be resumed later.");
+        if (confirmed) {
+            await invoke("AbandonCase", {});
+        }
+    }
+
+    async function onResume(): Promise<void> {
+        await invoke("ResumeCase", {});
+    }
+    const activePhase = computed(() => caseFile.value?.currentPhase ?? 2);
+    const activeDefinition = computed(() => config.phaseDefinitions.find(d => d.phase === activePhase.value));
+    const activeGate = computed(() => caseFile.value?.gateResults.find(g => g.phase === activePhase.value));
+
+    const statusLabelClass = computed(() => {
+        switch (caseFile.value?.status) {
+            case 2: return "label-success";
+            case 3: return "label-default";
+            case 4: return "label-warning";
+            case 5: return "label-warning";
+            default: return "label-info";
+        }
+    });
+
+    const hasChampionSignOff = computed(() => {
+        const state = caseFile.value?.phaseStates.find(s => s.phase === 8);
+        return !!state?.data?.["ChampionSignOffDateTime"];
+    });
+
+    const categoryItems = computed<ListItemBag[]>(() =>
+        (config.categories ?? []).map(c => ({ value: c.guid, text: c.name })));
+
+    function formatDate(value: string | null | undefined): string {
+        if (!value) {
+            return "";
+        }
+        return RockDateTime.parseISO(value)?.toASPString("d") ?? value;
+    }
+
+    async function invoke(action: string, parameters: Record<string, unknown>): Promise<void> {
+        const result = await invokeBlockAction<CaseFileBag>(action, { idKey: caseFile.value?.idKey, ...parameters });
+
+        if (result.isSuccess && result.data) {
+            caseFile.value = result.data;
+        }
+        else {
+            notification.value = result.errorMessage ?? "The action failed.";
+            notificationType.value = AlertType.Danger;
+        }
+    }
+
+    const phaseSummary = ref("");
+    const phaseSummaryEdit = ref("");
+    const isEditingNotes = ref(false);
+    const isSavingNotes = ref(false);
+
+    watch(activePhase, () => {
+        isEditingNotes.value = false;
+    });
+
+    watch([activePhase, caseFile], () => {
+        phaseSummary.value = caseFile.value?.phaseStates.find(s => s.phase === activePhase.value)?.summary ?? "";
+    }, { immediate: true });
+
+    function onEditNotes(): void {
+        phaseSummaryEdit.value = phaseSummary.value;
+        isEditingNotes.value = true;
+    }
+
+    const problemEdit = reactive({
+        title: "",
+        problemStatement: "",
+        categoryGuid: "",
+        attestNoUnverifiedDetails: false,
+        attestNothingNotGermane: false
+    });
+
+    watch(caseFile, () => {
+        if (!caseFile.value) {
+            return;
+        }
+        problemEdit.title = caseFile.value.title;
+        problemEdit.problemStatement = caseFile.value.problemStatement ?? "";
+        problemEdit.categoryGuid = caseFile.value.categoryGuid ?? "";
+        const state = caseFile.value.phaseStates.find(s => s.phase === 2);
+        problemEdit.attestNoUnverifiedDetails = state?.data?.["AttestNoUnverifiedDetails"] === "True";
+        problemEdit.attestNothingNotGermane = state?.data?.["AttestNothingNotGermane"] === "True";
+    }, { immediate: true });
+
+    function onPhaseSelected(phase: number): void {
+        if (canEdit && !isLocked.value) {
+            invoke("SetCurrentPhase", { phase });
+        }
+    }
+
+    function onSaveProblem(): void {
+        invoke("SaveProblemDefinition", {
+            title: problemEdit.title,
+            problemStatement: problemEdit.problemStatement,
+            categoryGuid: problemEdit.categoryGuid,
+            attestNoUnverifiedDetails: problemEdit.attestNoUnverifiedDetails,
+            attestNothingNotGermane: problemEdit.attestNothingNotGermane
+        });
+    }
+
+    async function onSavePhaseNotes(): Promise<void> {
+        isSavingNotes.value = true;
+        try {
+            await invoke("SavePhaseForm", { bag: { phase: activePhase.value, summary: phaseSummaryEdit.value, data: {} } });
+            isEditingNotes.value = false;
+        }
+        finally {
+            isSavingNotes.value = false;
+        }
+    }
+
+    function onCompletePhase(): void {
+        invoke("CompletePhase", { phase: activePhase.value });
+    }
+
+    function onLoopBack(): void {
+        invoke("LoopBack", {});
+    }
+
+    function onChampionSignOff(): void {
+        invoke("ChampionSignOff", {});
+    }
+
+    function onUpgradeMode(): void {
+        invoke("UpgradeMode", {});
+    }
+
+    function onReopen(): void {
+        invoke("ReopenCase", {});
+    }
+
+    function onConfirmFollowUp(): void {
+        invoke("ConfirmFollowUp", {});
+    }
+
+    function onSaveEntry(entry: CaseEntryBag): void {
+        invoke("SaveEntry", { bag: entry });
+    }
+
+    function onDeleteEntry(entryIdKey: string): void {
+        invoke("DeleteEntry", { entryIdKey });
+    }
+
+    function onSaveHypothesis(hypothesis: HypothesisBag): void {
+        invoke("SaveHypothesis", { bag: hypothesis });
+    }
+
+    function onDeleteHypothesis(hypothesisIdKey: string): void {
+        invoke("DeleteHypothesis", { hypothesisIdKey });
+    }
+
+    function onSaveExperiment(experiment: ExperimentBag): void {
+        invoke("SaveExperiment", { bag: experiment });
+    }
+
+    function onDeleteExperiment(experimentIdKey: string): void {
+        invoke("DeleteExperiment", { experimentIdKey });
+    }
+
+    function onSaveParticipant(participant: ParticipantBag): void {
+        invoke("SaveParticipant", { bag: participant });
+    }
+
+    function onDeleteParticipant(participantIdKey: string): void {
+        invoke("DeleteParticipant", { participantIdKey });
+    }
+
+    function onCreateRequest(participantIdKey: string, requestPrompt: string): void {
+        invoke("CreateStatementRequest", { participantIdKey, requestPrompt });
+    }
+
+    function onSendRequest(statementIdKey: string): void {
+        invoke("SendStatementRequest", { statementIdKey });
+    }
+
+    function onRecordStatement(participantIdKey: string, statement: string, binaryFileGuid: string | null, url: string | null, addToFacts: boolean, isCorroborated: boolean): void {
+        invoke("RecordStatement", { participantIdKey, statement, binaryFileGuid, url, addToFacts, isCorroborated });
+    }
+
+    function onStatementToFact(statementIdKey: string, factText: string, isCorroborated: boolean): void {
+        invoke("StatementToFact", { statementIdKey, factText, isCorroborated });
+    }
+
+    function onDeleteStatement(statementIdKey: string): void {
+        invoke("DeleteStatement", { statementIdKey });
+    }
+
+    const isCloseModalOpen = ref(false);
+    const isClosing = ref(false);
+
+    const closeForm = reactive({
+        impactSummary: "",
+        solutionSummary: "",
+        contributingFactors: "",
+        lessonsLearned: "",
+        preventionMeasures: "",
+        actionItems: "",
+        followUpDate: null as string | null
+    });
+
+    watch(isCloseModalOpen, open => {
+        if (open && caseFile.value) {
+            closeForm.impactSummary = caseFile.value.impactSummary ?? "";
+            closeForm.solutionSummary = caseFile.value.solutionSummary ?? "";
+            closeForm.contributingFactors = caseFile.value.contributingFactors ?? "";
+            closeForm.lessonsLearned = caseFile.value.lessonsLearned ?? "";
+            closeForm.preventionMeasures = caseFile.value.preventionMeasures ?? "";
+            closeForm.actionItems = caseFile.value.actionItems ?? "";
+            closeForm.followUpDate = caseFile.value.followUpDate ?? null;
+        }
+    });
+
+    async function onCloseCase(): Promise<void> {
+        isClosing.value = true;
+        try {
+            await invoke("CloseCase", { bag: { ...closeForm } });
+            if (caseFile.value?.status === 3) {
+                isCloseModalOpen.value = false;
+                notification.value = "Case closed and archived.";
+                notificationType.value = AlertType.Success;
+            }
+        }
+        finally {
+            isClosing.value = false;
+        }
+    }
+
+    const isExportingPdf = ref(false);
+
+    async function onExportPdf(): Promise<void> {
+        isExportingPdf.value = true;
+        try {
+            const result = await invokeBlockAction<PdfResultBag>("ExportPdf", { idKey: caseFile.value?.idKey });
+            if (result.isSuccess && result.data) {
+                downloadPdf(result.data);
+            }
+            else {
+                notification.value = result.errorMessage ?? "PDF export failed.";
+                notificationType.value = AlertType.Danger;
+            }
+        }
+        finally {
+            isExportingPdf.value = false;
+        }
+    }
+</script>

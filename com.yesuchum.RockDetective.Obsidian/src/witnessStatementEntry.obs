@@ -1,0 +1,112 @@
+<template>
+    <Panel title="Witness Statement" type="block">
+        <NotificationBox v-if="config.errorMessage" alertType="danger">{{ config.errorMessage }}</NotificationBox>
+
+        <template v-else>
+            <p class="text-muted mb-1">{{ config.caseNumber }}</p>
+            <h4 class="mt-0">{{ config.caseTitle }}</h4>
+
+            <p><strong>You are being asked:</strong></p>
+            <blockquote>{{ config.requestPrompt }}</blockquote>
+
+            <NotificationBox v-if="isDone" alertType="success">
+                {{ submittedMessage }}
+            </NotificationBox>
+
+            <template v-else-if="config.canSubmit">
+                <RockForm @submit="onSubmit">
+                    <TextBox v-model="statement"
+                             label="Your Statement"
+                             textMode="multiline"
+                             :rows="6"
+                             rules="required"
+                             help="Specific, firsthand observations help most: what you saw, when you saw it, and what changed around that time." />
+                    <FileUploader v-model="attachment" label="Attachment (optional)" :binaryFileTypeGuid="binaryFileTypeGuid" help="A screenshot, log excerpt, or document that supports your statement." />
+                    <TextBox v-model="url" label="Link (optional)" help="A link to something relevant, such as a dashboard or document." />
+                    <div class="d-flex" style="gap: 8px;">
+                        <RockButton type="submit" :btnType="BtnType.Primary" :disabled="isBusy">Submit Statement</RockButton>
+                        <RockButton :btnType="BtnType.Default" :disabled="isBusy" @click="isDeclineOpen = true">Decline</RockButton>
+                    </div>
+                </RockForm>
+
+                <Modal v-model="isDeclineOpen" title="Decline Statement Request" saveText="Decline" @save="onDecline">
+                    <TextBox v-model="declineReason" label="Reason (optional)" textMode="multiline" :rows="2" />
+                </Modal>
+            </template>
+
+            <NotificationBox v-else alertType="info">This statement request is no longer open.</NotificationBox>
+        </template>
+    </Panel>
+</template>
+
+<script setup lang="ts">
+    import { ref, computed } from "vue";
+    import Panel from "@Obsidian/Controls/panel.obs";
+    import Modal from "@Obsidian/Controls/modal.obs";
+    import RockForm from "@Obsidian/Controls/rockForm.obs";
+    import RockButton from "@Obsidian/Controls/rockButton.obs";
+    import TextBox from "@Obsidian/Controls/textBox.obs";
+    import FileUploader from "@Obsidian/Controls/fileUploader.obs";
+    import NotificationBox from "@Obsidian/Controls/notificationBox.obs";
+    import type { ListItemBag } from "@Obsidian/ViewModels/Utility/listItemBag";
+    import { BtnType } from "@Obsidian/Enums/Controls/btnType";
+    import { useConfigurationValues, useInvokeBlockAction } from "@Obsidian/Utility/block";
+    import type { WitnessStatementInitBag } from "./types.partial";
+
+    const config = useConfigurationValues<WitnessStatementInitBag>();
+    const invokeBlockAction = useInvokeBlockAction();
+
+    const statement = ref("");
+    const attachment = ref<ListItemBag | null | undefined>(null);
+    const url = ref("");
+    const binaryFileTypeGuid = "C1142570-8CD6-4A20-83B1-ACB47C1CD377";
+    const isBusy = ref(false);
+    const isDeclineOpen = ref(false);
+    const declineReason = ref("");
+    const justSubmitted = ref(false);
+    const justDeclined = ref(false);
+
+    const isDone = computed(() => config.isAlreadySubmitted || config.isDeclined || justSubmitted.value || justDeclined.value);
+
+    const submittedMessage = computed(() => {
+        if (justDeclined.value || config.isDeclined) {
+            return "You have declined this statement request.";
+        }
+        return "Thank you; your statement has been submitted to the case owner.";
+    });
+
+    async function onSubmit(): Promise<void> {
+        isBusy.value = true;
+        try {
+            const result = await invokeBlockAction("SubmitStatement", {
+                participantIdKey: config.participantIdKey,
+                statement: statement.value,
+                binaryFileGuid: attachment.value?.value ?? null,
+                url: url.value || null
+            });
+            if (result.isSuccess) {
+                justSubmitted.value = true;
+            }
+        }
+        finally {
+            isBusy.value = false;
+        }
+    }
+
+    async function onDecline(): Promise<void> {
+        isBusy.value = true;
+        try {
+            const result = await invokeBlockAction("DeclineStatement", {
+                participantIdKey: config.participantIdKey,
+                reason: declineReason.value
+            });
+            if (result.isSuccess) {
+                justDeclined.value = true;
+                isDeclineOpen.value = false;
+            }
+        }
+        finally {
+            isBusy.value = false;
+        }
+    }
+</script>

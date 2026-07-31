@@ -1,0 +1,327 @@
+<template>
+    <NotificationBox v-if="notification" :alertType="notificationType" :dismissible="true" @dismiss="notification = ''">
+        {{ notification }}
+    </NotificationBox>
+
+    <div class="mb-3">
+        <div class="btn-group d-flex" style="width: fit-content;">
+            <button v-for="view in views"
+                    :key="view.key"
+                    type="button"
+                    class="btn btn-sm d-inline-flex align-items-center"
+                    style="height: 34px;"
+                    :class="activeView === view.key ? 'btn-primary' : 'btn-default'"
+                    @click="onViewChanged(view.key)">
+                {{ view.label }}
+                <span v-if="view.badge" class="badge ml-1">{{ view.badge }}</span>
+            </button>
+        </div>
+    </div>
+
+    <Grid :data="gridDataSource"
+          keyField="idKey"
+          itemTerm="Case"
+          :entityTypeGuid="caseFileEntityTypeGuid"
+          stickyHeader
+          liveUpdates
+          gridSettings
+          :gridSettingsActive="hasSettingsFilters"
+          :showLaunchWorkflow="false"
+          :onAddItem="config.canAddCase && activeView !== 'Archive' ? onAddCase : undefined"
+          @gridSettingsClick="onGridSettingsClick"
+          @selectItem="onSelectItem">
+        <TextColumn name="caseNumber" title="Case #" field="caseNumber" :filter="textValueFilter" width="120px" visiblePriority="xs" />
+        <TextColumn name="title" title="Title" field="title" :filter="textValueFilter" visiblePriority="xs" />
+        <TextColumn name="categoryName" title="Category" field="categoryName" :filter="pickExistingValueFilter" width="140px" visiblePriority="md" />
+        <TextColumn v-if="activeView !== 'Archive'" name="status" title="Status" field="status" :filter="pickExistingValueFilter" width="120px" visiblePriority="xs" />
+        <TextColumn v-if="activeView !== 'Archive'" name="phase" title="Phase" field="phase" :filter="pickExistingValueFilter" width="140px" visiblePriority="md" />
+        <TextColumn name="mode" title="Mode" field="mode" :filter="pickExistingValueFilter" width="110px" visiblePriority="md" />
+        <TextColumn name="ownerName" title="Owner" field="ownerName" :filter="pickExistingValueFilter" width="150px" visiblePriority="md" />
+        <TextColumn v-if="activeView === 'Archive'" name="solutionSummary" title="Solution" field="solutionSummary" :filter="textValueFilter" visiblePriority="sm" />
+        <DateColumn v-if="activeView === 'Archive'" name="closedDateTime" title="Closed" field="closedDateTime" :filter="dateValueFilter" width="120px" visiblePriority="sm" />
+        <NumberColumn v-if="activeView !== 'Archive'" name="ageDays" title="Age (days)" field="ageDays" width="100px" visiblePriority="lg" />
+        <Column name="flags" title="" width="60px" visiblePriority="xs">
+            <template #format="{ row }">
+                <i v-if="row.hasOverdueWitness" class="ti ti-clock-exclamation text-warning" title="A witness statement request is overdue"></i>
+                <i v-if="row.hasMyPendingStatement" class="ti ti-message-report text-info ml-1" title="Your witness statement is requested"></i>
+            </template>
+        </Column>
+        <SecurityColumn :itemTitle="'title'" />
+        <DeleteColumn :rowDisabled="isDeleteRowDisabled" @click="onDeleteClick" />
+    </Grid>
+
+    <GridSettingsModal v-model="gridSettings"
+                       v-model:visible="isGridSettingsVisible"
+                       :categories="config.categories ?? []" />
+
+    <Modal v-model="isNewCaseOpen" title="New Case" :isSaveButtonDisabled="isSavingCase" saveText="Open Case" @save="onSaveNewCase">
+        <RockForm ref="newCaseForm">
+            <h5>Define the Problem</h5>
+            <TextBox v-model="newCase.title" label="Title" rules="required" help="A short handle for this case." />
+            <TextBox v-model="newCase.problemStatement"
+                     label="Problem Statement"
+                     textMode="multiline"
+                     :rows="4"
+                     rules="required"
+                     help="One clear, concise statement. Include nothing unverified and nothing that is not germane." />
+            <DropDownList v-model="newCase.categoryGuid" label="Category" :items="categoryItems" rules="required" />
+            <CheckBox v-model="newCase.attestNoUnverifiedDetails" label="This statement contains no unverified details" />
+            <CheckBox v-model="newCase.attestNothingNotGermane" label="This statement contains nothing that is not germane" />
+
+            <h5 class="mt-4">Classify</h5>
+            <p class="text-muted">Score each dimension to get a mode recommendation. You can override it.</p>
+            <div class="row">
+                <div class="col-md-6">
+                    <DropDownList v-model="newCase.scoreImpact" label="Impact" :items="scoreItems" :showBlankItem="false" />
+                    <DropDownList v-model="newCase.scoreUrgency" label="Urgency" :items="scoreItems" :showBlankItem="false" />
+                </div>
+                <div class="col-md-6">
+                    <DropDownList v-model="newCase.scoreRecurrence" label="Recurrence" :items="scoreItems" :showBlankItem="false" />
+                    <DropDownList v-model="newCase.scoreScope" label="Scope" :items="scoreItems" :showBlankItem="false" />
+                </div>
+            </div>
+
+            <NotificationBox :alertType="recommendedMode === 1 ? 'info' : 'success'">
+                Recommended mode: <strong>{{ recommendedMode === 1 ? "Advanced (difficult problem; full nine-phase flow)" : "Simple (easy problem; collapsed flow)" }}</strong>
+            </NotificationBox>
+
+            <RadioButtonList v-model="newCase.mode"
+                             label="Mode"
+                             :items="modeItems"
+                             :horizontal="true"
+                             help="Simple can be upgraded to Advanced later; a case never downgrades." />
+        </RockForm>
+    </Modal>
+</template>
+
+<script setup lang="ts">
+    import { ref, computed, reactive, watch } from "vue";
+    import NotificationBox from "@Obsidian/Controls/notificationBox.obs";
+    import Grid, { TextColumn, NumberColumn, DateColumn, Column, SecurityColumn, DeleteColumn, textValueFilter, pickExistingValueFilter, dateValueFilter } from "@Obsidian/Controls/grid";
+    import { alert } from "@Obsidian/Utility/dialogs";
+    import Modal from "@Obsidian/Controls/modal.obs";
+    import RockForm from "@Obsidian/Controls/rockForm.obs";
+    import TextBox from "@Obsidian/Controls/textBox.obs";
+    import DropDownList from "@Obsidian/Controls/dropDownList.obs";
+    import CheckBox from "@Obsidian/Controls/checkBox.obs";
+    import RadioButtonList from "@Obsidian/Controls/radioButtonList.obs";
+    import { AlertType } from "@Obsidian/Enums/Controls/alertType";
+    import { useConfigurationValues, useInvokeBlockAction, usePersonPreferences } from "@Obsidian/Utility/block";
+    import type { GridDataBag } from "@Obsidian/ViewModels/Core/Grid/gridDataBag";
+    import type { ListItemBag } from "@Obsidian/ViewModels/Utility/listItemBag";
+    import GridSettingsModal, { type GridSettingsOptions } from "./CaseFileList/gridSettingsModal.partial.obs";
+    import type { ArchiveSearchResultBag, CaseFileListInitBag, CaseFileListItemBag, NewCaseResultBag } from "./types.partial";
+
+    const config = useConfigurationValues<CaseFileListInitBag>();
+    const invokeBlockAction = useInvokeBlockAction();
+    const preferences = usePersonPreferences().blockPreferences;
+
+    const notification = ref("");
+    const notificationType = ref<string>(AlertType.Success);
+
+    const allCases = ref<CaseFileListItemBag[]>(config.cases ?? []);
+    const archiveCases = ref<CaseFileListItemBag[]>([]);
+    const archiveLoaded = ref(false);
+    const activeView = ref<string>(config.defaultView || "MyRequests");
+
+    const isGridSettingsVisible = ref(false);
+    const gridSettings = ref<GridSettingsOptions>({
+        category: preferences.getValue("filter-category"),
+        status: preferences.getValue("filter-status"),
+        mode: preferences.getValue("filter-mode")
+    });
+
+    const hasSettingsFilters = computed(() =>
+        !!gridSettings.value.category || !!gridSettings.value.status || !!gridSettings.value.mode);
+
+    watch(gridSettings, async () => {
+        preferences.setValue("filter-category", gridSettings.value.category ?? "");
+        preferences.setValue("filter-status", gridSettings.value.status ?? "");
+        preferences.setValue("filter-mode", gridSettings.value.mode ?? "");
+        await preferences.save();
+    });
+
+    function onGridSettingsClick(): void {
+        isGridSettingsVisible.value = true;
+    }
+
+    const views = computed(() => [
+        { key: "MyRequests", label: "My Requests", badge: allCases.value.filter(c => c.isMine).length || undefined },
+        { key: "MyAssignments", label: "My Assignments", badge: allCases.value.filter(c => c.isAssignedToMe).length || undefined },
+        { key: "All", label: "All", badge: undefined },
+        { key: "Archive", label: "Archive", badge: undefined }
+    ]);
+
+    const visibleCases = computed<CaseFileListItemBag[]>(() => {
+        let cases: CaseFileListItemBag[];
+
+        if (activeView.value === "Archive") {
+            cases = archiveCases.value;
+        }
+        else if (activeView.value === "MyRequests") {
+            cases = allCases.value.filter(c => c.isMine);
+        }
+        else if (activeView.value === "MyAssignments") {
+            cases = allCases.value.filter(c => c.isAssignedToMe);
+        }
+        else {
+            cases = allCases.value;
+        }
+
+        const settings = gridSettings.value;
+
+        if (settings.category) {
+            cases = cases.filter(c => c.categoryName === settings.category);
+        }
+        if (settings.status && activeView.value !== "Archive") {
+            cases = cases.filter(c => c.status === settings.status);
+        }
+        if (settings.mode) {
+            cases = cases.filter(c => c.mode === settings.mode);
+        }
+
+        return cases;
+    });
+
+    const gridDataSource = ref<Promise<GridDataBag>>();
+    let gridData: GridDataBag | undefined;
+
+    function refreshGrid(): void {
+        gridData = reactive<GridDataBag>({ rows: visibleCases.value as unknown as Record<string, unknown>[] });
+        gridDataSource.value = Promise.resolve(gridData);
+    }
+
+    refreshGrid();
+    watch(visibleCases, refreshGrid);
+
+    async function onViewChanged(view: string): Promise<void> {
+        activeView.value = view;
+
+        if (view === "Archive" && !archiveLoaded.value) {
+            const result = await invokeBlockAction<ArchiveSearchResultBag>("SearchArchive", { searchTerm: null });
+            if (result.isSuccess && result.data) {
+                archiveCases.value = result.data.cases ?? [];
+                archiveLoaded.value = true;
+            }
+            else {
+                notification.value = result.errorMessage ?? "Could not load the archive.";
+                notificationType.value = AlertType.Danger;
+            }
+        }
+    }
+
+    const caseFileEntityTypeGuid = "3B58FD75-80F4-47F7-BAE9-C401B55D89AA";
+
+    function isDeleteRowDisabled(row: Record<string, unknown>): boolean {
+        return !row.canDelete;
+    }
+
+    async function onDeleteClick(key: string): Promise<void> {
+        const result = await invokeBlockAction("Delete", { key });
+
+        if (result.isSuccess) {
+            allCases.value = allCases.value.filter(c => c.idKey !== key);
+            archiveCases.value = archiveCases.value.filter(c => c.idKey !== key);
+        }
+        else {
+            await alert(result.errorMessage ?? "Unknown error while trying to delete the case.");
+        }
+    }
+
+    function onSelectItem(key: string): void {
+        const url = config.detailPageUrl?.replace("PLACEHOLDER", key);
+        if (url) {
+            window.location.href = url;
+        }
+    }
+
+    const isNewCaseOpen = ref(false);
+    const isSavingCase = ref(false);
+
+    const newCase = reactive({
+        title: "",
+        problemStatement: "",
+        categoryGuid: "",
+        attestNoUnverifiedDetails: false,
+        attestNothingNotGermane: false,
+        scoreImpact: "1",
+        scoreUrgency: "1",
+        scoreRecurrence: "1",
+        scoreScope: "1",
+        mode: ""
+    });
+
+    const categoryItems = computed<ListItemBag[]>(() =>
+        (config.categories ?? []).map(c => ({ value: c.guid, text: c.name })));
+
+    const scoreItems: ListItemBag[] = [
+        { value: "1", text: "Low" },
+        { value: "2", text: "Medium" },
+        { value: "3", text: "High" }
+    ];
+
+    const modeItems: ListItemBag[] = [
+        { value: "0", text: "Simple" },
+        { value: "1", text: "Advanced" }
+    ];
+
+    const recommendedMode = computed<number>(() => {
+        const total = Number(newCase.scoreImpact) + Number(newCase.scoreUrgency) + Number(newCase.scoreRecurrence) + Number(newCase.scoreScope);
+        return total >= 8 ? 1 : 0;
+    });
+
+    watch(recommendedMode, mode => {
+        newCase.mode = String(mode);
+    }, { immediate: true });
+
+    function onAddCase(): void {
+        newCase.title = "";
+        newCase.problemStatement = "";
+        newCase.categoryGuid = "";
+        newCase.attestNoUnverifiedDetails = false;
+        newCase.attestNothingNotGermane = false;
+        newCase.scoreImpact = "1";
+        newCase.scoreUrgency = "1";
+        newCase.scoreRecurrence = "1";
+        newCase.scoreScope = "1";
+        newCase.mode = "0";
+        isNewCaseOpen.value = true;
+    }
+
+    async function onSaveNewCase(): Promise<void> {
+        if (!newCase.title || !newCase.problemStatement || !newCase.categoryGuid) {
+            notification.value = "A title, problem statement, and category are required.";
+            notificationType.value = AlertType.Warning;
+            return;
+        }
+
+        isSavingCase.value = true;
+        try {
+            const result = await invokeBlockAction<NewCaseResultBag>("CreateCase", {
+                bag: {
+                    title: newCase.title,
+                    problemStatement: newCase.problemStatement,
+                    categoryGuid: newCase.categoryGuid,
+                    attestNoUnverifiedDetails: newCase.attestNoUnverifiedDetails,
+                    attestNothingNotGermane: newCase.attestNothingNotGermane,
+                    scoreImpact: Number(newCase.scoreImpact),
+                    scoreUrgency: Number(newCase.scoreUrgency),
+                    scoreRecurrence: Number(newCase.scoreRecurrence),
+                    scoreScope: Number(newCase.scoreScope),
+                    mode: Number(newCase.mode)
+                }
+            });
+
+            if (result.isSuccess && result.data) {
+                window.location.href = result.data.detailUrl;
+            }
+            else {
+                notification.value = result.errorMessage ?? "Could not create the case.";
+                notificationType.value = AlertType.Danger;
+            }
+        }
+        finally {
+            isSavingCase.value = false;
+        }
+    }
+</script>

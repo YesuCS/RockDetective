@@ -1,0 +1,87 @@
+<template>
+    <Modal v-model="isVisible" title="Case Filters" saveText="Save" @save="onSave">
+        <SectionHeader title="Filters" />
+        <div class="row">
+            <div class="col-md-4">
+                <DropDownList v-model="category" label="Category" :items="categoryItems" />
+            </div>
+            <div class="col-md-4">
+                <DropDownList v-model="status" label="Status" :items="statusItems" />
+            </div>
+            <div class="col-md-4">
+                <DropDownList v-model="mode" label="Mode" :items="modeItems" />
+            </div>
+        </div>
+    </Modal>
+</template>
+
+<script setup lang="ts">
+    import { ref, computed, PropType, watch } from "vue";
+    import Modal from "@Obsidian/Controls/modal.obs";
+    import DropDownList from "@Obsidian/Controls/dropDownList.obs";
+    import SectionHeader from "@Obsidian/Controls/sectionHeader.obs";
+    import type { ListItemBag } from "@Obsidian/ViewModels/Utility/listItemBag";
+    import { statusNames, type CategoryOptionBag } from "../types.partial";
+
+    export type GridSettingsOptions = {
+        category: string;
+        status: string;
+        mode: string;
+    };
+
+    const props = defineProps({
+        modelValue: {
+            type: Object as PropType<GridSettingsOptions>,
+            required: true
+        },
+        visible: {
+            type: Boolean,
+            default: false
+        },
+        categories: {
+            type: Array as PropType<CategoryOptionBag[]>,
+            required: true
+        }
+    });
+
+    const emit = defineEmits<{
+        (e: "update:modelValue", value: GridSettingsOptions): void;
+        (e: "update:visible", value: boolean): void;
+    }>();
+
+    const isVisible = computed({
+        get: () => props.visible,
+        set: value => emit("update:visible", value)
+    });
+
+    const category = ref(props.modelValue.category);
+    const status = ref(props.modelValue.status);
+    const mode = ref(props.modelValue.mode);
+
+    watch(() => props.modelValue, value => {
+        category.value = value.category;
+        status.value = value.status;
+        mode.value = value.mode;
+    });
+
+    const categoryItems = computed<ListItemBag[]>(() =>
+        props.categories.map(c => ({ value: c.name, text: c.name })));
+
+    const statusItems: ListItemBag[] = statusNames
+        .filter(name => name !== "Closed")
+        .map(name => ({ value: name, text: name }));
+
+    const modeItems: ListItemBag[] = [
+        { value: "Simple", text: "Simple" },
+        { value: "Advanced", text: "Advanced" }
+    ];
+
+    function onSave(): void {
+        emit("update:modelValue", {
+            category: category.value,
+            status: status.value,
+            mode: mode.value
+        });
+        isVisible.value = false;
+    }
+</script>

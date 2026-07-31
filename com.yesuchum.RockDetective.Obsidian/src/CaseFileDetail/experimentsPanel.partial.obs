@@ -1,0 +1,182 @@
+<template>
+    <Panel title="Experiments" :hasCollapse="true">
+        <template #headerActions>
+            <RockButton v-if="canEdit" :btnType="BtnType.Default" :btnSize="BtnSize.ExtraSmall" @click.stop="onAdd">
+                <i class="ti ti-plus"></i>
+            </RockButton>
+        </template>
+
+        <p v-if="!experiments.length" class="text-muted">Change one factor at a time; log every change so it can be reverted.</p>
+
+        <div v-for="experiment in experiments" :key="experiment.idKey ?? ''" class="mb-3 p-3" style="border: 1px solid var(--color-interface-softer, #eee); border-radius: 4px;">
+            <div class="d-flex align-items-center">
+                <strong class="flex-fill">{{ hypothesisNameOf(experiment) }}</strong>
+                <span class="label" :class="outcomeLabelClass(experiment.outcome)">{{ outcomeNames[experiment.outcome] }}</span>
+                <span v-if="experiment.changesMade && !experiment.changesReverted && !experiment.revertJustification"
+                      class="label label-warning ml-1" title="Changes were made but not reverted or justified">
+                    <i class="ti ti-alert-triangle"></i> Unreverted
+                </span>
+                <button v-if="canEdit" type="button" class="btn btn-xs btn-link" title="Edit" @click="onEdit(experiment)"><i class="ti ti-pencil"></i></button>
+                <button v-if="canEdit" type="button" class="btn btn-xs btn-link" title="Delete" @click="onDelete(experiment)"><i class="ti ti-trash"></i></button>
+            </div>
+            <dl class="dl-horizontal mb-0 mt-2" style="font-size: 13px;">
+                <template v-if="experiment.testPlan"><dt>Plan</dt><dd>{{ experiment.testPlan }}</dd></template>
+                <template v-if="experiment.expectedResult"><dt>Expected</dt><dd>{{ experiment.expectedResult }}</dd></template>
+                <template v-if="experiment.actualResult"><dt>Actual</dt><dd>{{ experiment.actualResult }}</dd></template>
+                <template v-if="experiment.learnings"><dt>Learnings</dt><dd>{{ experiment.learnings }}</dd></template>
+            </dl>
+        </div>
+
+        <Modal v-model="isModalOpen" :title="editing.idKey ? 'Edit Experiment' : 'Add Experiment'" saveText="Save" @save="onSave">
+            <RockForm>
+                <DropDownList v-model="hypothesisValue" label="Hypothesis Under Test" :items="hypothesisItems" help="Link to a hypothesis from the probability tree, or describe one below." />
+                <TextBox v-if="!hypothesisValue" v-model="editing.hypothesisText" label="Hypothesis (free text)" />
+                <TextBox v-model="editing.testPlan" label="Test Plan" textMode="multiline" :rows="2" help="One factor changed at a time." />
+                <TextBox v-model="editing.expectedResult" label="Expected Result" textMode="multiline" :rows="2" />
+                <TextBox v-model="editing.actualResult" label="Actual Result" textMode="multiline" :rows="2" />
+                <DropDownList v-model="outcomeValue" label="Outcome" :items="outcomeItems" :showBlankItem="false" />
+                <TextBox v-model="editing.changesMade" label="Changes Made" textMode="multiline" :rows="2" help="Log every change so it can be reverted." />
+                <CheckBox v-model="editing.changesReverted" label="All changes have been reverted" />
+                <TextBox v-if="!editing.changesReverted && editing.changesMade" v-model="editing.revertJustification" label="Why changes remain in place" textMode="multiline" :rows="2" />
+                <TextBox v-model="editing.learnings" label="Learnings" textMode="multiline" :rows="2" help="Recorded learnings append to the fact list automatically once the outcome is recorded." />
+            </RockForm>
+        </Modal>
+    </Panel>
+</template>
+
+<script setup lang="ts">
+    import { ref, reactive, computed, PropType } from "vue";
+    import Panel from "@Obsidian/Controls/panel.obs";
+    import Modal from "@Obsidian/Controls/modal.obs";
+    import RockForm from "@Obsidian/Controls/rockForm.obs";
+    import RockButton from "@Obsidian/Controls/rockButton.obs";
+    import TextBox from "@Obsidian/Controls/textBox.obs";
+    import DropDownList from "@Obsidian/Controls/dropDownList.obs";
+    import CheckBox from "@Obsidian/Controls/checkBox.obs";
+    import { BtnType } from "@Obsidian/Enums/Controls/btnType";
+    import { BtnSize } from "@Obsidian/Enums/Controls/btnSize";
+    import { confirmDelete } from "@Obsidian/Utility/dialogs";
+    import type { ListItemBag } from "@Obsidian/ViewModels/Utility/listItemBag";
+    import { outcomeNames, type ExperimentBag, type HypothesisBag } from "../types.partial";
+
+    const props = defineProps({
+        experiments: {
+            type: Array as PropType<ExperimentBag[]>,
+            required: true
+        },
+        hypotheses: {
+            type: Array as PropType<HypothesisBag[]>,
+            required: true
+        },
+        canEdit: {
+            type: Boolean,
+            default: false
+        }
+    });
+
+    const emit = defineEmits<{
+        (e: "save", experiment: ExperimentBag): void;
+        (e: "delete", idKey: string): void;
+    }>();
+
+    const hypothesisItems = computed<ListItemBag[]>(() =>
+        props.hypotheses.filter(h => h.idKey).map(h => ({ value: h.idKey as string, text: h.name })));
+
+    function hypothesisNameOf(experiment: ExperimentBag): string {
+        if (experiment.hypothesisIdKey) {
+            return props.hypotheses.find(h => h.idKey === experiment.hypothesisIdKey)?.name ?? "Linked hypothesis";
+        }
+        return experiment.hypothesisText || "Unlinked experiment";
+    }
+
+    function outcomeLabelClass(outcome: number): string {
+        switch (outcome) {
+            case 1: return "label-success";
+            case 2: return "label-default";
+            case 3: return "label-warning";
+            default: return "label-info";
+        }
+    }
+
+    type ExperimentEdit = {
+        idKey: string | null;
+        hypothesisText: string;
+        testPlan: string;
+        expectedResult: string;
+        actualResult: string;
+        changesMade: string;
+        changesReverted: boolean;
+        revertJustification: string;
+        learnings: string;
+    };
+
+    const isModalOpen = ref(false);
+    const editing = reactive<ExperimentEdit>(blank());
+    const hypothesisValue = ref("");
+    const outcomeValue = ref("0");
+
+    const outcomeItems: ListItemBag[] = outcomeNames.map((name, index) => ({ value: String(index), text: name }));
+
+    function blank(): ExperimentEdit {
+        return {
+            idKey: null,
+            hypothesisText: "",
+            testPlan: "",
+            expectedResult: "",
+            actualResult: "",
+            changesMade: "",
+            changesReverted: false,
+            revertJustification: "",
+            learnings: ""
+        };
+    }
+
+    function onAdd(): void {
+        Object.assign(editing, blank());
+        hypothesisValue.value = "";
+        outcomeValue.value = "0";
+        isModalOpen.value = true;
+    }
+
+    function onEdit(experiment: ExperimentBag): void {
+        editing.idKey = experiment.idKey ?? null;
+        editing.hypothesisText = experiment.hypothesisText ?? "";
+        editing.testPlan = experiment.testPlan ?? "";
+        editing.expectedResult = experiment.expectedResult ?? "";
+        editing.actualResult = experiment.actualResult ?? "";
+        editing.changesMade = experiment.changesMade ?? "";
+        editing.changesReverted = experiment.changesReverted;
+        editing.revertJustification = experiment.revertJustification ?? "";
+        editing.learnings = experiment.learnings ?? "";
+        hypothesisValue.value = experiment.hypothesisIdKey ?? "";
+        outcomeValue.value = String(experiment.outcome);
+        isModalOpen.value = true;
+    }
+
+    async function onDelete(experiment: ExperimentBag): Promise<void> {
+        if (!experiment.idKey) {
+            return;
+        }
+        const confirmed = await confirmDelete("Experiment");
+        if (confirmed) {
+            emit("delete", experiment.idKey);
+        }
+    }
+
+    function onSave(): void {
+        emit("save", {
+            idKey: editing.idKey,
+            hypothesisIdKey: hypothesisValue.value || null,
+            hypothesisText: editing.hypothesisText || null,
+            testPlan: editing.testPlan || null,
+            expectedResult: editing.expectedResult || null,
+            actualResult: editing.actualResult || null,
+            outcome: Number(outcomeValue.value),
+            changesMade: editing.changesMade || null,
+            changesReverted: editing.changesReverted,
+            revertJustification: editing.revertJustification || null,
+            learnings: editing.learnings || null
+        });
+        isModalOpen.value = false;
+    }
+</script>

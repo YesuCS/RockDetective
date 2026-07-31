@@ -1,0 +1,163 @@
+<template>
+    <Panel title="Probability Tree" :hasCollapse="true">
+        <template #headerActions>
+            <RockButton v-if="canEdit" :btnType="BtnType.Default" :btnSize="BtnSize.ExtraSmall" @click.stop="onAdd(null)">
+                <i class="ti ti-plus"></i>
+            </RockButton>
+        </template>
+
+        <p v-if="!hypotheses.length" class="text-muted">Brainstorm candidate causes first; assign probabilities second.</p>
+
+        <template v-for="node in rootNodes" :key="node.idKey ?? node.name">
+            <div v-for="row in flatten(node, 0)" :key="row.node.idKey ?? row.node.name"
+                 class="d-flex align-items-start py-2"
+                 :style="{ paddingLeft: (row.depth * 24) + 'px', borderBottom: '1px solid var(--color-interface-softer, #eee)' }">
+                <div class="flex-fill">
+                    <strong>{{ row.node.name }}</strong>
+                    <span class="label ml-2" :class="statusLabelClass(row.node.status)">{{ hypothesisStatusNames[row.node.status] }}</span>
+                    <div v-if="row.node.description" class="text-muted" style="font-size: 13px;">{{ row.node.description }}</div>
+                    <div v-if="row.node.ruledOutReason" class="text-muted" style="font-size: 13px;">Ruled out: {{ row.node.ruledOutReason }}</div>
+                </div>
+                <div style="width: 70px; text-align: right;">
+                    <span class="badge">{{ row.node.probability }}%</span>
+                </div>
+                <div v-if="canEdit" style="width: 110px; text-align: right; white-space: nowrap;">
+                    <button type="button" class="btn btn-xs btn-link" title="Add child" @click="onAdd(row.node.idKey ?? null)"><i class="ti ti-git-branch"></i></button>
+                    <button type="button" class="btn btn-xs btn-link" title="Edit" @click="onEdit(row.node)"><i class="ti ti-pencil"></i></button>
+                    <button type="button" class="btn btn-xs btn-link" title="Delete" @click="onDelete(row.node)"><i class="ti ti-trash"></i></button>
+                </div>
+            </div>
+        </template>
+
+        <Modal v-model="isModalOpen" :title="editing.idKey ? 'Edit Hypothesis' : 'Add Hypothesis'" saveText="Save" @save="onSave">
+            <RockForm>
+                <TextBox v-model="editing.name" label="Hypothesis" rules="required" help="A candidate cause, stated so it can be tested." />
+                <TextBox v-model="editing.description" label="Details (optional)" textMode="multiline" :rows="2" />
+                <NumberBox v-model="probabilityValue" label="Probability (%)" :minimumValue="0" :maximumValue="100" />
+                <DropDownList v-model="statusValue" label="Status" :items="statusItems" :showBlankItem="false" />
+                <TextBox v-if="statusValue === '2'" v-model="editing.ruledOutReason" label="Ruled Out Reason" textMode="multiline" :rows="2" />
+                <NotificationBox v-if="statusValue === '3'" alertType="warning">
+                    Confirming a hypothesis requires a supporting experiment; the Reevaluate gate checks for one. Keep the sniff test in mind: is this explanation logical and likely?
+                </NotificationBox>
+            </RockForm>
+        </Modal>
+    </Panel>
+</template>
+
+<script setup lang="ts">
+    import { ref, reactive, computed, PropType } from "vue";
+    import Panel from "@Obsidian/Controls/panel.obs";
+    import Modal from "@Obsidian/Controls/modal.obs";
+    import RockForm from "@Obsidian/Controls/rockForm.obs";
+    import RockButton from "@Obsidian/Controls/rockButton.obs";
+    import TextBox from "@Obsidian/Controls/textBox.obs";
+    import NumberBox from "@Obsidian/Controls/numberBox.obs";
+    import DropDownList from "@Obsidian/Controls/dropDownList.obs";
+    import NotificationBox from "@Obsidian/Controls/notificationBox.obs";
+    import { BtnType } from "@Obsidian/Enums/Controls/btnType";
+    import { BtnSize } from "@Obsidian/Enums/Controls/btnSize";
+    import { confirmDelete } from "@Obsidian/Utility/dialogs";
+    import type { ListItemBag } from "@Obsidian/ViewModels/Utility/listItemBag";
+    import { hypothesisStatusNames, type HypothesisBag } from "../types.partial";
+
+    const props = defineProps({
+        hypotheses: {
+            type: Array as PropType<HypothesisBag[]>,
+            required: true
+        },
+        canEdit: {
+            type: Boolean,
+            default: false
+        }
+    });
+
+    const emit = defineEmits<{
+        (e: "save", hypothesis: HypothesisBag): void;
+        (e: "delete", idKey: string): void;
+    }>();
+
+    const rootNodes = computed(() => props.hypotheses.filter(h => !h.parentHypothesisIdKey));
+
+    type FlatRow = { node: HypothesisBag; depth: number };
+
+    function flatten(node: HypothesisBag, depth: number): FlatRow[] {
+        const rows: FlatRow[] = [{ node, depth }];
+        for (const child of props.hypotheses.filter(h => h.parentHypothesisIdKey && h.parentHypothesisIdKey === node.idKey)) {
+            rows.push(...flatten(child, depth + 1));
+        }
+        return rows;
+    }
+
+    function statusLabelClass(status: number): string {
+        switch (status) {
+            case 1: return "label-info";
+            case 2: return "label-default";
+            case 3: return "label-success";
+            default: return "label-warning";
+        }
+    }
+
+    type HypothesisEdit = {
+        idKey: string | null;
+        parentHypothesisIdKey: string | null;
+        name: string;
+        description: string;
+        ruledOutReason: string;
+    };
+
+    const isModalOpen = ref(false);
+    const editing = reactive<HypothesisEdit>(blank());
+    const probabilityValue = ref<number | null>(0);
+    const statusValue = ref("0");
+
+    const statusItems: ListItemBag[] = hypothesisStatusNames.map((name, index) => ({ value: String(index), text: name }));
+
+    function blank(): HypothesisEdit {
+        return { idKey: null, parentHypothesisIdKey: null, name: "", description: "", ruledOutReason: "" };
+    }
+
+    function onAdd(parentIdKey: string | null): void {
+        Object.assign(editing, blank());
+        editing.parentHypothesisIdKey = parentIdKey;
+        probabilityValue.value = 0;
+        statusValue.value = "0";
+        isModalOpen.value = true;
+    }
+
+    function onEdit(node: HypothesisBag): void {
+        editing.idKey = node.idKey ?? null;
+        editing.parentHypothesisIdKey = node.parentHypothesisIdKey ?? null;
+        editing.name = node.name;
+        editing.description = node.description ?? "";
+        editing.ruledOutReason = node.ruledOutReason ?? "";
+        probabilityValue.value = node.probability;
+        statusValue.value = String(node.status);
+        isModalOpen.value = true;
+    }
+
+    async function onDelete(node: HypothesisBag): Promise<void> {
+        if (!node.idKey) {
+            return;
+        }
+        const confirmed = await confirmDelete("Hypothesis");
+        if (confirmed) {
+            emit("delete", node.idKey);
+        }
+    }
+
+    function onSave(): void {
+        if (!editing.name) {
+            return;
+        }
+        emit("save", {
+            idKey: editing.idKey,
+            parentHypothesisIdKey: editing.parentHypothesisIdKey,
+            name: editing.name,
+            description: editing.description || null,
+            probability: probabilityValue.value ?? 0,
+            status: Number(statusValue.value),
+            ruledOutReason: editing.ruledOutReason || null
+        });
+        isModalOpen.value = false;
+    }
+</script>

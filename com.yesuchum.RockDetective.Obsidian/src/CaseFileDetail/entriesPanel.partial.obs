@@ -1,0 +1,184 @@
+<template>
+    <Panel :title="title" :hasCollapse="true">
+        <template #headerActions>
+            <RockButton v-if="canEdit" :btnType="BtnType.Default" :btnSize="BtnSize.ExtraSmall" @click.stop="onAdd">
+                <i class="ti ti-plus"></i>
+            </RockButton>
+        </template>
+
+        <p v-if="!items.length" class="text-muted">{{ emptyText }}</p>
+
+        <table v-else class="table">
+            <tbody>
+                <tr v-for="entry in items" :key="entry.idKey ?? entry.text">
+                    <td v-if="entryType === 1" style="width: 160px; white-space: nowrap;">
+                        {{ formatDate(entry.eventDateTime) }}
+                        <div class="text-muted" style="font-size: 12.5px;">{{ timelineTypeNames[entry.timelineEventType ?? 4] }}</div>
+                    </td>
+                    <td>
+                        {{ entry.text }}
+                        <div v-if="entry.source !== 0" class="text-muted" style="font-size: 12.5px;">
+                            From {{ entry.source === 1 ? ("witness " + (entry.sourceParticipantName ?? "")) : "experiment learnings" }}
+                        </div>
+                        <div v-if="entryType === 2" class="text-muted" style="font-size: 12.5px;">
+                            <span v-if="entry.binaryFileName"><i class="ti ti-paperclip"></i> {{ entry.binaryFileName }}</span>
+                            <a v-if="entry.url" :href="entry.url" target="_blank" rel="noopener noreferrer" class="ml-2"><i class="ti ti-link"></i> {{ entry.url }}</a>
+                        </div>
+                    </td>
+                    <td v-if="entryType === 0" style="width: 120px;">
+                        <span class="label" :class="entry.isCorroborated ? 'label-success' : 'label-default'">
+                            {{ entry.isCorroborated ? "Corroborated" : "Uncorroborated" }}
+                        </span>
+                    </td>
+                    <td style="width: 80px; text-align: right; white-space: nowrap;">
+                        <button v-if="canEdit" type="button" class="btn btn-xs btn-link" title="Edit" @click="onEdit(entry)"><i class="ti ti-pencil"></i></button>
+                        <button v-if="canEdit" type="button" class="btn btn-xs btn-link" title="Delete" @click="onDelete(entry)"><i class="ti ti-trash"></i></button>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+
+        <Modal v-model="isModalOpen" :title="modalTitle" saveText="Save" @save="onSave">
+            <RockForm>
+                <TextBox v-model="editing.text" :label="entryType === 2 ? 'Description' : 'Text'" textMode="multiline" :rows="3" rules="required" />
+                <DateTimePicker v-if="entryType === 1" v-model="editing.eventDateTime" label="When" rules="required" />
+                <DropDownList v-if="entryType === 1" v-model="timelineTypeValue" label="Event Type" :items="timelineTypeItems" :showBlankItem="false" />
+                <CheckBox v-if="entryType === 0" v-model="editing.isCorroborated" label="Corroborated by evidence" />
+                <TextBox v-if="entryType === 2" v-model="editing.url" label="Link (optional)" />
+                <FileUploader v-if="entryType === 2" v-model="binaryFile" label="Attachment (optional)" :binaryFileTypeGuid="binaryFileTypeGuid" />
+            </RockForm>
+        </Modal>
+    </Panel>
+</template>
+
+<script setup lang="ts">
+    import { ref, reactive, computed, PropType } from "vue";
+    import Panel from "@Obsidian/Controls/panel.obs";
+    import Modal from "@Obsidian/Controls/modal.obs";
+    import RockForm from "@Obsidian/Controls/rockForm.obs";
+    import RockButton from "@Obsidian/Controls/rockButton.obs";
+    import TextBox from "@Obsidian/Controls/textBox.obs";
+    import DropDownList from "@Obsidian/Controls/dropDownList.obs";
+    import CheckBox from "@Obsidian/Controls/checkBox.obs";
+    import DateTimePicker from "@Obsidian/Controls/dateTimePicker.obs";
+    import FileUploader from "@Obsidian/Controls/fileUploader.obs";
+    import { BtnType } from "@Obsidian/Enums/Controls/btnType";
+    import { BtnSize } from "@Obsidian/Enums/Controls/btnSize";
+    import { confirmDelete } from "@Obsidian/Utility/dialogs";
+    import { RockDateTime } from "@Obsidian/Utility/rockDateTime";
+    import type { ListItemBag } from "@Obsidian/ViewModels/Utility/listItemBag";
+    import { timelineTypeNames, type CaseEntryBag } from "../types.partial";
+
+    const props = defineProps({
+        entries: {
+            type: Array as PropType<CaseEntryBag[]>,
+            required: true
+        },
+        entryType: {
+            type: Number,
+            required: true
+        },
+        title: {
+            type: String,
+            required: true
+        },
+        emptyText: {
+            type: String,
+            default: "Nothing recorded yet."
+        },
+        canEdit: {
+            type: Boolean,
+            default: false
+        }
+    });
+
+    const emit = defineEmits<{
+        (e: "save", entry: CaseEntryBag): void;
+        (e: "delete", idKey: string): void;
+    }>();
+
+    const binaryFileTypeGuid = "C1142570-8CD6-4A20-83B1-ACB47C1CD377";
+
+    const items = computed(() => props.entries.filter(e => e.entryType === props.entryType));
+
+    type EntryEdit = {
+        idKey: string | null;
+        text: string;
+        eventDateTime: string | null;
+        url: string;
+        isCorroborated: boolean;
+    };
+
+    const isModalOpen = ref(false);
+    const editing = reactive<EntryEdit>(blankEntry());
+    const binaryFile = ref<ListItemBag | null | undefined>(null);
+    const timelineTypeValue = ref("0");
+
+    const modalTitle = computed(() => (editing.idKey ? "Edit " : "Add ") + props.title.replace(/s$/, ""));
+
+    const timelineTypeItems: ListItemBag[] = timelineTypeNames.map((name, index) => ({ value: String(index), text: name }));
+
+    function blankEntry(): EntryEdit {
+        return {
+            idKey: null,
+            text: "",
+            eventDateTime: null,
+            url: "",
+            isCorroborated: false
+        };
+    }
+
+    function formatDate(value: string | null | undefined): string {
+        if (!value) {
+            return "";
+        }
+        return RockDateTime.parseISO(value)?.toASPString("g") ?? value;
+    }
+
+    function onAdd(): void {
+        Object.assign(editing, blankEntry());
+        binaryFile.value = null;
+        timelineTypeValue.value = "0";
+        isModalOpen.value = true;
+    }
+
+    function onEdit(entry: CaseEntryBag): void {
+        editing.idKey = entry.idKey ?? null;
+        editing.text = entry.text;
+        editing.eventDateTime = entry.eventDateTime ?? null;
+        editing.url = entry.url ?? "";
+        editing.isCorroborated = entry.isCorroborated;
+        binaryFile.value = entry.binaryFileGuid ? { value: entry.binaryFileGuid, text: entry.binaryFileName ?? "Attachment" } : null;
+        timelineTypeValue.value = String(entry.timelineEventType ?? 0);
+        isModalOpen.value = true;
+    }
+
+    async function onDelete(entry: CaseEntryBag): Promise<void> {
+        if (!entry.idKey) {
+            return;
+        }
+        const confirmed = await confirmDelete(props.title.replace(/s$/, ""));
+        if (confirmed) {
+            emit("delete", entry.idKey);
+        }
+    }
+
+    function onSave(): void {
+        if (!editing.text) {
+            return;
+        }
+        emit("save", {
+            idKey: editing.idKey,
+            entryType: props.entryType,
+            text: editing.text,
+            eventDateTime: editing.eventDateTime,
+            timelineEventType: props.entryType === 1 ? Number(timelineTypeValue.value) : null,
+            binaryFileGuid: binaryFile.value?.value ?? null,
+            url: editing.url || null,
+            source: 0,
+            isCorroborated: editing.isCorroborated,
+            order: 0
+        });
+        isModalOpen.value = false;
+    }
+</script>

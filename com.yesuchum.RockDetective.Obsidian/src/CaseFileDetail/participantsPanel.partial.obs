@@ -1,0 +1,344 @@
+<template>
+    <Panel title="Team and Witnesses" :hasCollapse="true">
+        <template #headerActions>
+            <RockButton v-if="canEdit" :btnType="BtnType.Default" :btnSize="BtnSize.ExtraSmall" @click.stop="onAdd">
+                <i class="ti ti-plus"></i>
+            </RockButton>
+        </template>
+
+        <p class="mb-1"><strong>Owner:</strong> {{ ownerName }}</p>
+
+        <p v-if="!participants.length" class="text-muted">All roles except owner are optional; small problems skip them. Add a Champion for a sanity check on the final explanation.</p>
+
+        <table v-else class="table">
+            <tbody>
+                <template v-for="participant in participants" :key="participant.idKey ?? ''">
+                    <tr>
+                        <td>
+                            {{ participant.displayName }}
+                            <span v-if="participant.isExternal" class="label label-default ml-1">External</span>
+                            <div v-if="participant.externalContact" class="text-muted" style="font-size: 12.5px;">{{ participant.externalContact }}</div>
+                        </td>
+                        <td style="width: 130px;">{{ roleNames[participant.role] }}</td>
+                        <td style="width: 140px;">
+                            <span v-if="participant.statements.length" class="text-muted" style="font-size: 12.5px;">
+                                {{ participant.statements.length }} statement{{ participant.statements.length === 1 ? "" : "s" }}
+                            </span>
+                        </td>
+                        <td style="text-align: right; white-space: nowrap;">
+                            <template v-if="canEdit">
+                                <button type="button" class="btn btn-xs btn-link" title="Request a statement" @click="onRequestStatement(participant)">
+                                    <i class="ti ti-message-question"></i>
+                                </button>
+                                <button type="button" class="btn btn-xs btn-link" title="Record statement manually" @click="onRecordStatement(participant)">
+                                    <i class="ti ti-writing"></i>
+                                </button>
+                                <button type="button" class="btn btn-xs btn-link" title="Edit" @click="onEdit(participant)"><i class="ti ti-pencil"></i></button>
+                                <button type="button" class="btn btn-xs btn-link" title="Remove" @click="onDelete(participant)"><i class="ti ti-trash"></i></button>
+                            </template>
+                        </td>
+                    </tr>
+                    <tr v-for="statement in participant.statements" :key="statement.idKey ?? ''">
+                        <td colspan="2" style="padding-left: 28px;">
+                            <span class="label" :class="requestLabelClass(statement)">{{ requestStatusNames[statement.requestStatus] }}</span>
+                            <i v-if="statement.isOverdue" class="ti ti-clock-exclamation text-warning ml-1" title="Overdue"></i>
+                            <span v-if="statement.requestPrompt" class="text-muted ml-2" style="font-size: 12.5px;">{{ statement.requestPrompt }}</span>
+                        </td>
+                        <td style="width: 140px;">
+                            <span v-if="statement.binaryFileName" class="text-muted" style="font-size: 12.5px;"><i class="ti ti-paperclip"></i> {{ statement.binaryFileName }}</span>
+                        </td>
+                        <td style="text-align: right; white-space: nowrap;">
+                            <template v-if="canEdit">
+                                <button v-if="canSend(participant, statement, false)"
+                                        type="button" class="btn btn-xs btn-link" title="Send request" @click="$emit('sendRequest', statement.idKey ?? '')">
+                                    <i class="ti ti-send"></i>
+                                </button>
+                                <button v-if="canSend(participant, statement, true)"
+                                        type="button" class="btn btn-xs btn-link" title="Send reminder" @click="$emit('sendRequest', statement.idKey ?? '')">
+                                    <i class="ti ti-bell"></i>
+                                </button>
+                            </template>
+                            <button v-if="statement.statement" type="button" class="btn btn-xs btn-link" title="View statement" @click="onViewStatement(participant, statement)">
+                                <i class="ti ti-file-text"></i>
+                            </button>
+                            <button v-if="canEdit" type="button" class="btn btn-xs btn-link" title="Delete statement" @click="onDeleteStatement(statement)">
+                                <i class="ti ti-trash"></i>
+                            </button>
+                        </td>
+                    </tr>
+                </template>
+            </tbody>
+        </table>
+
+        <Modal v-model="isEditOpen" :title="editing.idKey ? 'Edit Participant' : 'Add Participant'" saveText="Save" @save="onSaveParticipant">
+            <RockForm>
+                <RadioButtonList v-model="personKind" label="Person Type" :items="personKindItems" :horizontal="true" />
+                <PersonPicker v-if="personKind === 'rock'" v-model="pickedPerson" label="Person" rules="required" />
+                <template v-else>
+                    <TextBox v-model="externalName" label="Name" rules="required" />
+                    <TextBox v-model="externalContact" label="Contact (optional)" help="Email, phone, or however you reach them." />
+                </template>
+                <DropDownList v-model="roleValue" label="Role" :items="roleItems" :showBlankItem="false" />
+            </RockForm>
+        </Modal>
+
+        <Modal v-model="isRequestOpen" title="Request Statement" saveText="Create Request" @save="onSaveRequest">
+            <RockForm>
+                <NotificationBox v-if="requestTarget?.isExternal" alertType="info">
+                    External witnesses cannot receive Rock communications. The request is saved on the case; gather and record their statement manually.
+                </NotificationBox>
+                <TextBox v-model="requestPrompt" label="What do you want to ask?" textMode="multiline" :rows="3" rules="required"
+                         help="Be specific: what did they see, when, and what changed around that time. Each request becomes its own statement; a witness can be asked more than once." />
+            </RockForm>
+        </Modal>
+
+        <Modal v-model="isRecordOpen" title="Record Statement Manually" saveText="Save Statement" @save="onSaveRecord">
+            <RockForm>
+                <TextBox v-model="manualStatement" label="Statement" textMode="multiline" :rows="5" rules="required" />
+                <FileUploader v-model="manualFile" label="Attachment (optional)" :binaryFileTypeGuid="binaryFileTypeGuid" />
+                <TextBox v-model="manualUrl" label="Link (optional)" />
+                <CheckBox v-model="manualAddToFacts" label="Add this statement to the fact list" />
+                <CheckBox v-if="manualAddToFacts" v-model="manualIsCorroborated" label="Mark the fact as corroborated" />
+            </RockForm>
+        </Modal>
+
+        <Modal v-model="isViewOpen" title="Witness Statement" :cancelText="'Close'" :saveText="canEdit ? 'Add to Facts' : ''" @save="onAddStatementFact">
+            <p class="text-muted mb-1">{{ viewParticipant?.displayName }}; submitted {{ formatDate(viewTarget?.submittedDateTime) }}</p>
+            <p v-if="viewTarget?.requestPrompt" class="text-muted">Asked: {{ viewTarget?.requestPrompt }}</p>
+            <blockquote>{{ viewTarget?.statement }}</blockquote>
+            <p v-if="viewTarget?.binaryFileGuid" class="mb-1">
+                <a :href="'/GetFile.ashx?guid=' + viewTarget.binaryFileGuid" target="_blank" rel="noopener noreferrer">
+                    <i class="ti ti-paperclip"></i> {{ viewTarget.binaryFileName ?? "Attachment" }}
+                </a>
+            </p>
+            <p v-if="viewTarget?.url" class="mb-1">
+                <a :href="viewTarget.url" target="_blank" rel="noopener noreferrer"><i class="ti ti-link"></i> {{ viewTarget.url }}</a>
+            </p>
+            <template v-if="canEdit">
+                <TextBox v-model="factText" label="Fact text" textMode="multiline" :rows="3" help="Edit down to the specific, pertinent fact before adding. Witness statements are never fully trusted." />
+                <CheckBox v-model="factIsCorroborated" label="Corroborated by evidence" />
+            </template>
+        </Modal>
+    </Panel>
+</template>
+
+<script setup lang="ts">
+    import { ref, PropType, reactive } from "vue";
+    import Panel from "@Obsidian/Controls/panel.obs";
+    import Modal from "@Obsidian/Controls/modal.obs";
+    import RockForm from "@Obsidian/Controls/rockForm.obs";
+    import RockButton from "@Obsidian/Controls/rockButton.obs";
+    import TextBox from "@Obsidian/Controls/textBox.obs";
+    import DropDownList from "@Obsidian/Controls/dropDownList.obs";
+    import CheckBox from "@Obsidian/Controls/checkBox.obs";
+    import RadioButtonList from "@Obsidian/Controls/radioButtonList.obs";
+    import PersonPicker from "@Obsidian/Controls/personPicker.obs";
+    import FileUploader from "@Obsidian/Controls/fileUploader.obs";
+    import NotificationBox from "@Obsidian/Controls/notificationBox.obs";
+    import { BtnType } from "@Obsidian/Enums/Controls/btnType";
+    import { BtnSize } from "@Obsidian/Enums/Controls/btnSize";
+    import { confirmDelete } from "@Obsidian/Utility/dialogs";
+    import { RockDateTime } from "@Obsidian/Utility/rockDateTime";
+    import type { ListItemBag } from "@Obsidian/ViewModels/Utility/listItemBag";
+    import { roleNames, requestStatusNames, type ParticipantBag, type StatementBag } from "../types.partial";
+
+    const props = defineProps({
+        participants: {
+            type: Array as PropType<ParticipantBag[]>,
+            required: true
+        },
+        ownerName: {
+            type: String,
+            required: true
+        },
+        canEdit: {
+            type: Boolean,
+            default: false
+        }
+    });
+
+    const emit = defineEmits<{
+        (e: "save", participant: ParticipantBag): void;
+        (e: "delete", idKey: string): void;
+        (e: "createRequest", participantIdKey: string, prompt: string): void;
+        (e: "sendRequest", statementIdKey: string): void;
+        (e: "recordStatement", participantIdKey: string, statement: string, binaryFileGuid: string | null, url: string | null, addToFacts: boolean, isCorroborated: boolean): void;
+        (e: "statementToFact", statementIdKey: string, factText: string, isCorroborated: boolean): void;
+        (e: "deleteStatement", statementIdKey: string): void;
+    }>();
+
+    async function onDeleteStatement(statement: StatementBag): Promise<void> {
+        if (!statement.idKey) {
+            return;
+        }
+        const confirmed = await confirmDelete("Statement");
+        if (confirmed) {
+            emit("deleteStatement", statement.idKey);
+        }
+    }
+
+    const binaryFileTypeGuid = "C1142570-8CD6-4A20-83B1-ACB47C1CD377";
+
+    function canSend(participant: ParticipantBag, statement: StatementBag, isReminder: boolean): boolean {
+        if (participant.isExternal) {
+            return false;
+        }
+        if (isReminder) {
+            return statement.requestStatus === 2 || statement.requestStatus === 3;
+        }
+        return statement.requestStatus === 1;
+    }
+
+    function requestLabelClass(statement: StatementBag): string {
+        switch (statement.requestStatus) {
+            case 4:
+            case 6: return "label-success";
+            case 5: return "label-default";
+            case 2:
+            case 3: return statement.isOverdue ? "label-warning" : "label-info";
+            default: return "label-default";
+        }
+    }
+
+    function formatDate(value: string | null | undefined): string {
+        if (!value) {
+            return "";
+        }
+        return RockDateTime.parseISO(value)?.toASPString("g") ?? value;
+    }
+
+    const isEditOpen = ref(false);
+    const editing = reactive<ParticipantBag>(blank());
+    const personKind = ref("rock");
+    const pickedPerson = ref<ListItemBag | undefined>();
+    const externalName = ref("");
+    const externalContact = ref("");
+    const roleValue = ref("4");
+
+    const personKindItems: ListItemBag[] = [
+        { value: "rock", text: "Rock person" },
+        { value: "external", text: "External person" }
+    ];
+
+    const roleItems: ListItemBag[] = roleNames
+        .map((name, index) => ({ value: String(index), text: name }))
+        .filter(item => item.value !== "0");
+
+    function blank(): ParticipantBag {
+        return { idKey: null, personAliasGuid: null, displayName: null, externalContact: null, isExternal: false, role: 4, statements: [] };
+    }
+
+    function onAdd(): void {
+        Object.assign(editing, blank());
+        personKind.value = "rock";
+        pickedPerson.value = undefined;
+        externalName.value = "";
+        externalContact.value = "";
+        roleValue.value = "4";
+        isEditOpen.value = true;
+    }
+
+    function onEdit(participant: ParticipantBag): void {
+        Object.assign(editing, participant);
+        personKind.value = participant.isExternal ? "external" : "rock";
+        pickedPerson.value = participant.personAliasGuid ? { value: participant.personAliasGuid, text: participant.displayName ?? "" } : undefined;
+        externalName.value = participant.isExternal ? (participant.displayName ?? "") : "";
+        externalContact.value = participant.externalContact ?? "";
+        roleValue.value = String(participant.role);
+        isEditOpen.value = true;
+    }
+
+    async function onDelete(participant: ParticipantBag): Promise<void> {
+        if (!participant.idKey) {
+            return;
+        }
+        const confirmed = await confirmDelete("Participant");
+        if (confirmed) {
+            emit("delete", participant.idKey);
+        }
+    }
+
+    function onSaveParticipant(): void {
+        const bag: ParticipantBag = {
+            ...editing,
+            personAliasGuid: personKind.value === "rock" ? (pickedPerson.value?.value ?? null) : null,
+            displayName: personKind.value === "rock" ? (pickedPerson.value?.text ?? null) : externalName.value,
+            externalContact: personKind.value === "external" ? externalContact.value : null,
+            isExternal: personKind.value === "external",
+            role: Number(roleValue.value)
+        };
+
+        if (!bag.personAliasGuid && !bag.displayName) {
+            return;
+        }
+
+        emit("save", bag);
+        isEditOpen.value = false;
+    }
+
+    const isRequestOpen = ref(false);
+    const requestTarget = ref<ParticipantBag | null>(null);
+    const requestPrompt = ref("");
+
+    function onRequestStatement(participant: ParticipantBag): void {
+        requestTarget.value = participant;
+        requestPrompt.value = "";
+        isRequestOpen.value = true;
+    }
+
+    function onSaveRequest(): void {
+        if (!requestTarget.value?.idKey || !requestPrompt.value) {
+            return;
+        }
+        emit("createRequest", requestTarget.value.idKey, requestPrompt.value);
+        isRequestOpen.value = false;
+    }
+
+    const isRecordOpen = ref(false);
+    const recordTarget = ref<ParticipantBag | null>(null);
+    const manualStatement = ref("");
+    const manualFile = ref<ListItemBag | null | undefined>(null);
+    const manualUrl = ref("");
+    const manualAddToFacts = ref(false);
+    const manualIsCorroborated = ref(false);
+
+    function onRecordStatement(participant: ParticipantBag): void {
+        recordTarget.value = participant;
+        manualStatement.value = "";
+        manualFile.value = null;
+        manualUrl.value = "";
+        manualAddToFacts.value = false;
+        manualIsCorroborated.value = false;
+        isRecordOpen.value = true;
+    }
+
+    function onSaveRecord(): void {
+        if (!recordTarget.value?.idKey || !manualStatement.value) {
+            return;
+        }
+        emit("recordStatement", recordTarget.value.idKey, manualStatement.value, manualFile.value?.value ?? null, manualUrl.value || null, manualAddToFacts.value, manualIsCorroborated.value);
+        isRecordOpen.value = false;
+    }
+
+    const isViewOpen = ref(false);
+    const viewParticipant = ref<ParticipantBag | null>(null);
+    const viewTarget = ref<StatementBag | null>(null);
+    const factText = ref("");
+    const factIsCorroborated = ref(false);
+
+    function onViewStatement(participant: ParticipantBag, statement: StatementBag): void {
+        viewParticipant.value = participant;
+        viewTarget.value = statement;
+        factText.value = statement.statement ?? "";
+        factIsCorroborated.value = false;
+        isViewOpen.value = true;
+    }
+
+    function onAddStatementFact(): void {
+        if (!viewTarget.value?.idKey || !factText.value) {
+            return;
+        }
+        emit("statementToFact", viewTarget.value.idKey, factText.value, factIsCorroborated.value);
+        isViewOpen.value = false;
+    }
+</script>

@@ -1,0 +1,70 @@
+<template>
+    <div class="rd-stepper d-flex flex-wrap align-items-center mb-3" style="gap: 4px;">
+        <template v-for="definition in visibleDefinitions" :key="definition.phase">
+            <button type="button"
+                    class="btn btn-xs"
+                    :class="buttonClass(definition.phase)"
+                    :title="definition.guidance"
+                    @click="$emit('phaseSelected', definition.phase)">
+                <i v-if="progressOf(definition.phase) === 2" class="ti ti-check mr-1"></i>
+                <i v-else-if="progressOf(definition.phase) === 3" class="ti ti-arrow-forward mr-1"></i>
+                {{ definition.phase }}. {{ definition.name }}
+            </button>
+            <i v-if="definition.phase < 9 && nextVisiblePhase(definition.phase)" class="ti ti-chevron-right text-muted"></i>
+        </template>
+    </div>
+    <div v-if="showLoopHint" class="text-muted mb-3" style="font-size: 13px;">
+        <i class="ti ti-refresh mr-1"></i>Phases 5 through 8 loop: keep cycling through Facts, Probability Tree, Experiments, and Reevaluate until a cause is confirmed beyond a reasonable doubt.
+    </div>
+</template>
+
+<script setup lang="ts">
+    import { computed, PropType } from "vue";
+    import type { PhaseDefinitionBag, PhaseStateBag } from "../types.partial";
+
+    const props = defineProps({
+        definitions: {
+            type: Array as PropType<PhaseDefinitionBag[]>,
+            required: true
+        },
+        phaseStates: {
+            type: Array as PropType<PhaseStateBag[]>,
+            required: true
+        },
+        currentPhase: {
+            type: Number,
+            required: true
+        },
+        isSimpleMode: {
+            type: Boolean,
+            default: false
+        }
+    });
+
+    defineEmits<{
+        (e: "phaseSelected", phase: number): void;
+    }>();
+
+    const visibleDefinitions = computed(() =>
+        props.definitions.filter(d => !props.isSimpleMode || !d.isAutoSkippedInSimpleMode || progressOf(d.phase) === 1 || progressOf(d.phase) === 2));
+
+    const showLoopHint = computed(() => props.currentPhase >= 5 && props.currentPhase <= 8);
+
+    function progressOf(phase: number): number {
+        return props.phaseStates.find(s => s.phase === phase)?.progress ?? 0;
+    }
+
+    function nextVisiblePhase(phase: number): boolean {
+        return visibleDefinitions.value.some(d => d.phase > phase);
+    }
+
+    function buttonClass(phase: number): string {
+        if (phase === props.currentPhase) {
+            return "btn-primary";
+        }
+        if (progressOf(phase) === 2) {
+            return "btn-success";
+        }
+        return "btn-default";
+    }
+</script>
