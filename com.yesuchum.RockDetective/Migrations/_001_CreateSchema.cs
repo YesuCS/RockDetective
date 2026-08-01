@@ -2,7 +2,7 @@ using Rock.Plugin;
 
 namespace com.yesuchum.RockDetective.Migrations
 {
-    [MigrationNumber( 1, "1.17" )]
+    [MigrationNumber( 1, "18.2" )]
     public class _001_CreateSchema : Migration
     {
         private const string InstalledPluginsPage = "5B6DBC42-8B03-4D15-8D92-AAFA28FD8616";
@@ -21,6 +21,9 @@ namespace com.yesuchum.RockDetective.Migrations
         private const string AuthAdminAdministrate = "330E42B2-BABD-43D6-AD14-724A14F055FA";
 
         private const string ReminderDaysAttribute = "7CAC3FF9-A092-43FE-B6C5-8CDE388AC461";
+        private const string DetailPageAttribute = "4AF30017-5374-4D14-8AAC-769B1649C6DC";
+        private const string WitnessStatementPageAttribute = "F28BD323-EA0B-492E-98F9-5B7F4D5B902B";
+        private const string PageReferenceFieldType = "BD53F9C9-EBA9-4D3F-82EA-DE5DD34A8108";
 
         private const string CaseFileEntityName = "com.yesuchum.RockDetective.Model.CaseFile";
 
@@ -422,45 +425,24 @@ namespace com.yesuchum.RockDetective.Migrations
             RockMigrationHelper.AddBlock( true, SystemGuid.Page.WITNESS_STATEMENT, null, SystemGuid.BlockType.WITNESS_STATEMENT_ENTRY,
                 "Witness Statement Entry", "Main", string.Empty, string.Empty, 0, WitnessStatementBlock );
 
-            WireBlockPageAttribute( SystemGuid.BlockType.CASE_FILE_LIST, CaseFileListBlock, "DetailPage", SystemGuid.Page.CASE_BOARD );
-            WireBlockPageAttribute( SystemGuid.BlockType.CASE_FILE_DETAIL, CaseBoardBlock, "WitnessStatementPage", SystemGuid.Page.WITNESS_STATEMENT );
-        }
+            RockMigrationHelper.AddOrUpdateBlockTypeAttribute( SystemGuid.BlockType.CASE_FILE_LIST, PageReferenceFieldType,
+                "Detail Page", "DetailPage", "Detail Page",
+                "The Case Board page for viewing and working a case.",
+                0, string.Empty, DetailPageAttribute );
 
-        private void WireBlockPageAttribute( string blockTypeGuid, string blockGuid, string attributeKey, string valuePageGuid )
-        {
-            Sql( $@"
-                DECLARE @AttributeId int = (
-                    SELECT TOP 1 a.[Id]
-                    FROM [Attribute] a
-                    INNER JOIN [BlockType] bt ON CAST(bt.[Id] AS NVARCHAR(20)) = a.[EntityTypeQualifierValue]
-                    WHERE a.[Key] = '{attributeKey}'
-                      AND a.[EntityTypeQualifierColumn] = 'BlockTypeId'
-                      AND bt.[Guid] = '{blockTypeGuid}'
-                );
+            RockMigrationHelper.AddOrUpdateBlockTypeAttribute( SystemGuid.BlockType.CASE_FILE_DETAIL, PageReferenceFieldType,
+                "Witness Statement Page", "WitnessStatementPage", "Witness Statement Page",
+                "The page witnesses land on to submit a requested statement.",
+                0, string.Empty, WitnessStatementPageAttribute );
 
-                DECLARE @BlockId int = (
-                    SELECT TOP 1 [Id] FROM [Block] WHERE [Guid] = '{blockGuid}'
-                );
-
-                IF @AttributeId IS NOT NULL AND @BlockId IS NOT NULL
-                BEGIN
-                    IF EXISTS (SELECT 1 FROM [AttributeValue] WHERE [AttributeId] = @AttributeId AND [EntityId] = @BlockId)
-                    BEGIN
-                        UPDATE [AttributeValue]
-                        SET [Value] = '{valuePageGuid}'
-                        WHERE [AttributeId] = @AttributeId AND [EntityId] = @BlockId;
-                    END
-                    ELSE
-                    BEGIN
-                        INSERT INTO [AttributeValue] ([IsSystem], [AttributeId], [EntityId], [Value], [Guid])
-                        VALUES (0, @AttributeId, @BlockId, '{valuePageGuid}', NEWID());
-                    END
-                END
-            " );
+            RockMigrationHelper.AddBlockAttributeValue( true, CaseFileListBlock, DetailPageAttribute, SystemGuid.Page.CASE_BOARD );
+            RockMigrationHelper.AddBlockAttributeValue( true, CaseBoardBlock, WitnessStatementPageAttribute, SystemGuid.Page.WITNESS_STATEMENT );
         }
 
         private void DeletePages()
         {
+            RockMigrationHelper.DeleteAttribute( WitnessStatementPageAttribute );
+            RockMigrationHelper.DeleteAttribute( DetailPageAttribute );
             RockMigrationHelper.DeleteBlock( WitnessStatementBlock );
             RockMigrationHelper.DeleteBlock( CaseBoardBlock );
             RockMigrationHelper.DeleteBlock( CaseFileListBlock );
