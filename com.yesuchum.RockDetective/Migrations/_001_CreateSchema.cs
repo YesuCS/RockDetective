@@ -306,6 +306,10 @@ namespace com.yesuchum.RockDetective.Migrations
             RockMigrationHelper.UpdateEntityType( "com.yesuchum.RockDetective.Model.Hypothesis", "Hypothesis", "com.yesuchum.RockDetective", true, false, SystemGuid.EntityType.HYPOTHESIS );
             RockMigrationHelper.UpdateEntityType( "com.yesuchum.RockDetective.Model.Experiment", "Experiment", "com.yesuchum.RockDetective", true, false, SystemGuid.EntityType.EXPERIMENT );
             RockMigrationHelper.UpdateEntityType( "com.yesuchum.RockDetective.Model.CaseStatement", "Case Statement", "com.yesuchum.RockDetective", true, false, SystemGuid.EntityType.CASE_STATEMENT );
+
+            RockMigrationHelper.UpdateEntityType( "com.yesuchum.RockDetective.Blocks.CaseFileList", "Case File List", "com.yesuchum.RockDetective", false, false, SystemGuid.EntityType.CASE_FILE_LIST_BLOCK );
+            RockMigrationHelper.UpdateEntityType( "com.yesuchum.RockDetective.Blocks.CaseFileDetail", "Case Board", "com.yesuchum.RockDetective", false, false, SystemGuid.EntityType.CASE_BOARD_BLOCK );
+            RockMigrationHelper.UpdateEntityType( "com.yesuchum.RockDetective.Blocks.WitnessStatementEntry", "Witness Statement Entry", "com.yesuchum.RockDetective", false, false, SystemGuid.EntityType.WITNESS_STATEMENT_ENTRY_BLOCK );
         }
 
         private void UnregisterEntityTypes()
