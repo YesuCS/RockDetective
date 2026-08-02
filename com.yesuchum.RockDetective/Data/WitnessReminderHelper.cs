@@ -7,7 +7,7 @@ namespace com.yesuchum.RockDetective.Data
 {
     public static class WitnessReminderHelper
     {
-        public static void AddOrRefreshReminder( int caseFileId, int personAliasId, string note )
+        public static void AddOrRefreshReminder( int caseStatementId, int personAliasId, string note )
         {
             using ( var rockContext = new RockContext() )
             {
@@ -21,7 +21,7 @@ namespace com.yesuchum.RockDetective.Data
                 var reminderService = new Rock.Model.ReminderService( rockContext );
                 var existing = reminderService.Queryable()
                     .Where( r => r.ReminderTypeId == reminderTypeId.Value
-                        && r.EntityId == caseFileId
+                        && r.EntityId == caseStatementId
                         && r.PersonAliasId == personAliasId
                         && !r.IsComplete )
                     .FirstOrDefault();
@@ -37,7 +37,7 @@ namespace com.yesuchum.RockDetective.Data
                     {
                         ReminderTypeId = reminderTypeId.Value,
                         PersonAliasId = personAliasId,
-                        EntityId = caseFileId,
+                        EntityId = caseStatementId,
                         ReminderDate = RockDateTime.Now,
                         Note = note,
                         IsComplete = false
@@ -49,7 +49,7 @@ namespace com.yesuchum.RockDetective.Data
             }
         }
 
-        public static void CompleteReminders( int caseFileId, int personAliasId )
+        public static void CompleteReminders( int caseStatementId, int personAliasId )
         {
             using ( var rockContext = new RockContext() )
             {
@@ -63,7 +63,7 @@ namespace com.yesuchum.RockDetective.Data
                 var reminderService = new Rock.Model.ReminderService( rockContext );
                 var reminders = reminderService.Queryable()
                     .Where( r => r.ReminderTypeId == reminderTypeId.Value
-                        && r.EntityId == caseFileId
+                        && r.EntityId == caseStatementId
                         && r.PersonAliasId == personAliasId
                         && !r.IsComplete )
                     .ToList();
@@ -85,12 +85,14 @@ namespace com.yesuchum.RockDetective.Data
 
         private static int? GetReminderTypeId( RockContext rockContext )
         {
-            var caseFileEntityTypeId = Rock.Web.Cache.EntityTypeCache.Get( SystemGuid.EntityType.CASE_FILE.AsGuid() )?.Id;
+            var statementEntityType = Rock.Web.Cache.EntityTypeCache.Get( SystemGuid.EntityType.CASE_STATEMENT.AsGuid() );
 
-            if ( !caseFileEntityTypeId.HasValue )
+            if ( statementEntityType == null )
             {
                 return null;
             }
+
+            EnsureEntityLinkTemplate( rockContext, statementEntityType.Id );
 
             var reminderTypeGuid = SystemGuid.ReminderType.WITNESS_STATEMENT.AsGuid();
             var reminderTypeService = new Rock.Model.ReminderTypeService( rockContext );
@@ -102,7 +104,7 @@ namespace com.yesuchum.RockDetective.Data
                 {
                     Name = "Witness Statement Request",
                     Description = "A Rock Detective case owner has asked you for a witness statement.",
-                    EntityTypeId = caseFileEntityTypeId.Value,
+                    EntityTypeId = statementEntityType.Id,
                     IsActive = true,
                     ShouldShowNote = true,
                     ShouldAutoCompleteWhenNotified = false,
@@ -113,8 +115,33 @@ namespace com.yesuchum.RockDetective.Data
                 reminderTypeService.Add( reminderType );
                 rockContext.SaveChanges();
             }
+            else if ( reminderType.EntityTypeId != statementEntityType.Id )
+            {
+                reminderType.EntityTypeId = statementEntityType.Id;
+                rockContext.SaveChanges();
+            }
 
             return reminderType.Id;
+        }
+
+        private static void EnsureEntityLinkTemplate( RockContext rockContext, int statementEntityTypeId )
+        {
+            var witnessPage = Rock.Web.Cache.PageCache.Get( SystemGuid.Page.WITNESS_STATEMENT.AsGuid() );
+
+            if ( witnessPage == null )
+            {
+                return;
+            }
+
+            var template = "/page/" + witnessPage.Id + "?Statement={{ Entity.Guid }}";
+            var entityType = new Rock.Model.EntityTypeService( rockContext ).Get( statementEntityTypeId );
+
+            if ( entityType != null && entityType.LinkUrlLavaTemplate != template )
+            {
+                entityType.LinkUrlLavaTemplate = template;
+                rockContext.SaveChanges();
+                Rock.Web.Cache.EntityTypeCache.Remove( statementEntityTypeId );
+            }
         }
 
         private static void RecalculateCount( RockContext rockContext, int personAliasId )

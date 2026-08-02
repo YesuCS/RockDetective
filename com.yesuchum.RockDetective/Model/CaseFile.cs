@@ -102,6 +102,11 @@ namespace com.yesuchum.RockDetective.Model
         [NotMapped]
         public string Name => Title;
 
+        public override string ToString()
+        {
+            return Title;
+        }
+
         private Rock.Model.Category _category;
         private bool _categoryLoaded;
 

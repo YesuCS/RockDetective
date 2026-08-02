@@ -88,12 +88,19 @@ namespace com.yesuchum.RockDetective.Blocks
 
             var id = Rock.Utility.IdHasher.Instance.GetId( idKey );
 
-            if ( !id.HasValue )
+            if ( id.HasValue )
             {
-                return null;
+                return new CaseStatementService( detectiveContext ).Get( id.Value );
             }
 
-            return new CaseStatementService( detectiveContext ).Get( id.Value );
+            var guid = idKey.AsGuidOrNull();
+
+            if ( guid.HasValue )
+            {
+                return detectiveContext.CaseStatements.FirstOrDefault( s => s.Guid == guid.Value );
+            }
+
+            return null;
         }
 
         private static bool CanAccess( Model.CaseParticipant participant, Model.CaseFile caseFile, Rock.Model.Person person )
@@ -158,14 +165,7 @@ namespace com.yesuchum.RockDetective.Blocks
                 return;
             }
 
-            var hasOtherPending = detectiveContext.CaseStatements.Any( s => s.ParticipantId == participant.Id
-                && s.Id != statementEntity.Id
-                && ( s.RequestStatus == StatementRequestStatus.Requested || s.RequestStatus == StatementRequestStatus.Reminded ) );
-
-            if ( !hasOtherPending )
-            {
-                WitnessReminderHelper.CompleteReminders( statementEntity.CaseFileId, participant.PersonAliasId.Value );
-            }
+            WitnessReminderHelper.CompleteReminders( statementEntity.Id, participant.PersonAliasId.Value );
         }
 
         private static int? ResolveBinaryFileId( string binaryFileGuid )

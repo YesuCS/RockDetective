@@ -1168,7 +1168,7 @@ namespace com.yesuchum.RockDetective.Blocks
 
                 if ( isRockPerson && sendAutomatically )
                 {
-                    WitnessReminderHelper.AddOrRefreshReminder( caseFile.Id, participant.PersonAliasId.Value, statement.RequestPrompt );
+                    WitnessReminderHelper.AddOrRefreshReminder( statement.Id, participant.PersonAliasId.Value, statement.RequestPrompt );
 
                     var sendError = SendStatementRequestCommunication( caseFile, participant, statement, SystemGuid.SystemCommunication.WITNESS_STATEMENT_REQUEST );
 
@@ -1218,7 +1218,7 @@ namespace com.yesuchum.RockDetective.Blocks
                     ? SystemGuid.SystemCommunication.WITNESS_STATEMENT_REMINDER
                     : SystemGuid.SystemCommunication.WITNESS_STATEMENT_REQUEST;
 
-                WitnessReminderHelper.AddOrRefreshReminder( caseFile.Id, participant.PersonAliasId.Value, statement.RequestPrompt );
+                WitnessReminderHelper.AddOrRefreshReminder( statement.Id, participant.PersonAliasId.Value, statement.RequestPrompt );
 
                 var sendError = SendStatementRequestCommunication( caseFile, participant, statement, communicationGuid );
 
@@ -1396,14 +1396,7 @@ namespace com.yesuchum.RockDetective.Blocks
 
                 if ( participant?.PersonAliasId != null )
                 {
-                    var hasOtherPending = detectiveContext.CaseStatements.Any( s => s.ParticipantId == participant.Id
-                        && s.Id != statementEntity.Id
-                        && ( s.RequestStatus == StatementRequestStatus.Requested || s.RequestStatus == StatementRequestStatus.Reminded ) );
-
-                    if ( !hasOtherPending )
-                    {
-                        WitnessReminderHelper.CompleteReminders( caseFile.Id, participant.PersonAliasId.Value );
-                    }
+                    WitnessReminderHelper.CompleteReminders( statementEntity.Id, participant.PersonAliasId.Value );
                 }
 
                 return ActionOk( BuildBag( detectiveContext, caseFile ) );
@@ -1452,22 +1445,16 @@ namespace com.yesuchum.RockDetective.Blocks
                     return ActionNotFound( "Statement not found." );
                 }
 
-                var isPending = statement.RequestStatus == StatementRequestStatus.Requested || statement.RequestStatus == StatementRequestStatus.Reminded;
+                var deletedStatementId = statement.Id;
                 var participant = new CaseParticipantService( detectiveContext ).Get( statement.ParticipantId );
 
                 statementService.Delete( statement );
                 StampModified( caseFile );
                 detectiveContext.SaveChanges();
 
-                if ( isPending && participant?.PersonAliasId != null )
+                if ( participant?.PersonAliasId != null )
                 {
-                    var hasOtherPending = detectiveContext.CaseStatements.Any( s => s.ParticipantId == participant.Id
-                        && ( s.RequestStatus == StatementRequestStatus.Requested || s.RequestStatus == StatementRequestStatus.Reminded ) );
-
-                    if ( !hasOtherPending )
-                    {
-                        WitnessReminderHelper.CompleteReminders( caseFile.Id, participant.PersonAliasId.Value );
-                    }
+                    WitnessReminderHelper.CompleteReminders( deletedStatementId, participant.PersonAliasId.Value );
                 }
 
                 return ActionOk( BuildBag( detectiveContext, caseFile ) );

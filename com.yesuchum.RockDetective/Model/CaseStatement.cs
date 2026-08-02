@@ -4,6 +4,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 using System.Data.Entity.ModelConfiguration;
 using System.Runtime.Serialization;
 
+using Rock;
 using Rock.Data;
 
 using com.yesuchum.RockDetective.Enums;
@@ -63,6 +64,11 @@ namespace com.yesuchum.RockDetective.Model
 
         [DataMember]
         public virtual CaseParticipant Participant { get; set; }
+
+        public override string ToString()
+        {
+            return RequestPrompt.IsNotNullOrWhiteSpace() ? RequestPrompt : "Witness statement request";
+        }
     }
 
     public partial class CaseStatementConfiguration : EntityTypeConfiguration<CaseStatement>
