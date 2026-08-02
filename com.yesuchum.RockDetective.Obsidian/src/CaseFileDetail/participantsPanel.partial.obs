@@ -57,6 +57,10 @@
                                         type="button" class="btn btn-xs btn-link" title="Send reminder" @click="$emit('sendRequest', statement.idKey ?? '')">
                                     <i class="ti ti-bell"></i>
                                 </button>
+                                <button v-if="isPending(statement)"
+                                        type="button" class="btn btn-xs btn-link" title="Record their response" @click="onRecordResponse(participant, statement)">
+                                    <i class="ti ti-writing"></i>
+                                </button>
                             </template>
                             <button v-if="statement.statement" type="button" class="btn btn-xs btn-link" title="View statement" @click="onViewStatement(participant, statement)">
                                 <i class="ti ti-file-text"></i>
@@ -92,8 +96,9 @@
             </RockForm>
         </Modal>
 
-        <Modal v-model="isRecordOpen" title="Record Statement Manually" saveText="Save Statement" @save="onSaveRecord">
+        <Modal v-model="isRecordOpen" :title="responseTarget ? 'Record Statement Response' : 'Record Statement Manually'" saveText="Save Statement" @save="onSaveRecord">
             <RockForm>
+                <p v-if="responseTarget?.requestPrompt" class="text-muted">Asked: {{ responseTarget.requestPrompt }}</p>
                 <TextBox v-model="manualStatement" label="Statement" textMode="multiline" :rows="5" rules="required" />
                 <FileUploader v-model="manualFile" label="Attachment (optional)" :binaryFileTypeGuid="binaryFileTypeGuid" />
                 <TextBox v-model="manualUrl" label="Link (optional)" />
@@ -163,6 +168,7 @@
         (e: "createRequest", participantIdKey: string, prompt: string): void;
         (e: "sendRequest", statementIdKey: string): void;
         (e: "recordStatement", participantIdKey: string, statement: string, binaryFileGuid: string | null, url: string | null, addToFacts: boolean, isCorroborated: boolean): void;
+        (e: "recordResponse", statementIdKey: string, statement: string, binaryFileGuid: string | null, url: string | null, addToFacts: boolean, isCorroborated: boolean): void;
         (e: "statementToFact", statementIdKey: string, factText: string, isCorroborated: boolean): void;
         (e: "deleteStatement", statementIdKey: string): void;
     }>();
@@ -178,6 +184,10 @@
     }
 
     const binaryFileTypeGuid = "C1142570-8CD6-4A20-83B1-ACB47C1CD377";
+
+    function isPending(statement: StatementBag): boolean {
+        return statement.requestStatus === 1 || statement.requestStatus === 2 || statement.requestStatus === 3;
+    }
 
     function canSend(participant: ParticipantBag, statement: StatementBag, isReminder: boolean): boolean {
         if (participant.isExternal) {
@@ -296,6 +306,7 @@
 
     const isRecordOpen = ref(false);
     const recordTarget = ref<ParticipantBag | null>(null);
+    const responseTarget = ref<StatementBag | null>(null);
     const manualStatement = ref("");
     const manualFile = ref<ListItemBag | null | undefined>(null);
     const manualUrl = ref("");
@@ -304,6 +315,18 @@
 
     function onRecordStatement(participant: ParticipantBag): void {
         recordTarget.value = participant;
+        responseTarget.value = null;
+        manualStatement.value = "";
+        manualFile.value = null;
+        manualUrl.value = "";
+        manualAddToFacts.value = false;
+        manualIsCorroborated.value = false;
+        isRecordOpen.value = true;
+    }
+
+    function onRecordResponse(participant: ParticipantBag, statement: StatementBag): void {
+        recordTarget.value = participant;
+        responseTarget.value = statement;
         manualStatement.value = "";
         manualFile.value = null;
         manualUrl.value = "";
@@ -313,10 +336,20 @@
     }
 
     function onSaveRecord(): void {
-        if (!recordTarget.value?.idKey || !manualStatement.value) {
+        if (!manualStatement.value) {
             return;
         }
-        emit("recordStatement", recordTarget.value.idKey, manualStatement.value, manualFile.value?.value ?? null, manualUrl.value || null, manualAddToFacts.value, manualIsCorroborated.value);
+
+        if (responseTarget.value?.idKey) {
+            emit("recordResponse", responseTarget.value.idKey, manualStatement.value, manualFile.value?.value ?? null, manualUrl.value || null, manualAddToFacts.value, manualIsCorroborated.value);
+        }
+        else if (recordTarget.value?.idKey) {
+            emit("recordStatement", recordTarget.value.idKey, manualStatement.value, manualFile.value?.value ?? null, manualUrl.value || null, manualAddToFacts.value, manualIsCorroborated.value);
+        }
+        else {
+            return;
+        }
+
         isRecordOpen.value = false;
     }
 

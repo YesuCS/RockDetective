@@ -125,6 +125,8 @@ namespace com.yesuchum.RockDetective.Blocks
                 statementEntity.ModifiedByPersonAliasId = RequestContext.CurrentPerson?.PrimaryAliasId;
                 detectiveContext.SaveChanges();
 
+                CompleteRemindersIfSettled( detectiveContext, statementEntity );
+
                 return ActionOk();
             } );
         }
@@ -141,8 +143,29 @@ namespace com.yesuchum.RockDetective.Blocks
                 statementEntity.ModifiedByPersonAliasId = RequestContext.CurrentPerson?.PrimaryAliasId;
                 detectiveContext.SaveChanges();
 
+                CompleteRemindersIfSettled( detectiveContext, statementEntity );
+
                 return ActionOk();
             } );
+        }
+
+        private static void CompleteRemindersIfSettled( RockDetectiveContext detectiveContext, Model.CaseStatement statementEntity )
+        {
+            var participant = new CaseParticipantService( detectiveContext ).Get( statementEntity.ParticipantId );
+
+            if ( participant?.PersonAliasId == null )
+            {
+                return;
+            }
+
+            var hasOtherPending = detectiveContext.CaseStatements.Any( s => s.ParticipantId == participant.Id
+                && s.Id != statementEntity.Id
+                && ( s.RequestStatus == StatementRequestStatus.Requested || s.RequestStatus == StatementRequestStatus.Reminded ) );
+
+            if ( !hasOtherPending )
+            {
+                WitnessReminderHelper.CompleteReminders( statementEntity.CaseFileId, participant.PersonAliasId.Value );
+            }
         }
 
         private static int? ResolveBinaryFileId( string binaryFileGuid )

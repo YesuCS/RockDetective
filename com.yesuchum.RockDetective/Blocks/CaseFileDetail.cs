@@ -1168,6 +1168,8 @@ namespace com.yesuchum.RockDetective.Blocks
 
                 if ( isRockPerson && sendAutomatically )
                 {
+                    WitnessReminderHelper.AddOrRefreshReminder( caseFile.Id, participant.PersonAliasId.Value, statement.RequestPrompt );
+
                     var sendError = SendStatementRequestCommunication( caseFile, participant, statement, SystemGuid.SystemCommunication.WITNESS_STATEMENT_REQUEST );
 
                     if ( sendError == null )
@@ -1216,11 +1218,13 @@ namespace com.yesuchum.RockDetective.Blocks
                     ? SystemGuid.SystemCommunication.WITNESS_STATEMENT_REMINDER
                     : SystemGuid.SystemCommunication.WITNESS_STATEMENT_REQUEST;
 
+                WitnessReminderHelper.AddOrRefreshReminder( caseFile.Id, participant.PersonAliasId.Value, statement.RequestPrompt );
+
                 var sendError = SendStatementRequestCommunication( caseFile, participant, statement, communicationGuid );
 
                 if ( sendError != null )
                 {
-                    return ActionBadRequest( sendError );
+                    return ActionBadRequest( sendError + " The witness was still given an in-Rock reminder." );
                 }
 
                 statement.RequestStatus = isReminder ? StatementRequestStatus.Reminded : StatementRequestStatus.Requested;
@@ -1344,6 +1348,69 @@ namespace com.yesuchum.RockDetective.Blocks
         }
 
         [BlockAction]
+        public BlockActionResult RecordStatementResponse( string idKey, string statementIdKey, string statement, string binaryFileGuid, string url, bool addToFacts, bool isCorroborated )
+        {
+            return WithEditableCase( idKey, ( detectiveContext, caseFile ) =>
+            {
+                var statementService = new CaseStatementService( detectiveContext );
+                var statementId = Rock.Utility.IdHasher.Instance.GetId( statementIdKey ?? string.Empty );
+                var statementEntity = statementId.HasValue ? statementService.Get( statementId.Value ) : null;
+
+                if ( statementEntity == null || statementEntity.CaseFileId != caseFile.Id )
+                {
+                    return ActionNotFound( "Statement request not found." );
+                }
+
+                var isPending = statementEntity.RequestStatus == StatementRequestStatus.Draft
+                    || statementEntity.RequestStatus == StatementRequestStatus.Requested
+                    || statementEntity.RequestStatus == StatementRequestStatus.Reminded;
+
+                if ( !isPending )
+                {
+                    return ActionBadRequest( "This statement request has already been answered." );
+                }
+
+                if ( statement.IsNullOrWhiteSpace() )
+                {
+                    return ActionBadRequest( "A statement is required." );
+                }
+
+                statementEntity.Statement = statement;
+                statementEntity.Url = url.Truncate( 2000 );
+                statementEntity.BinaryFileId = ResolveBinaryFileId( binaryFileGuid );
+                statementEntity.RequestStatus = StatementRequestStatus.ManuallyRecorded;
+                statementEntity.SubmittedDateTime = RockDateTime.Now;
+                statementEntity.ModifiedDateTime = RockDateTime.Now;
+                statementEntity.ModifiedByPersonAliasId = RequestContext.CurrentPerson?.PrimaryAliasId;
+                detectiveContext.SaveChanges();
+
+                if ( addToFacts )
+                {
+                    AddStatementFact( detectiveContext, caseFile, statementEntity, statement, isCorroborated );
+                }
+
+                StampModified( caseFile );
+                detectiveContext.SaveChanges();
+
+                var participant = new CaseParticipantService( detectiveContext ).Get( statementEntity.ParticipantId );
+
+                if ( participant?.PersonAliasId != null )
+                {
+                    var hasOtherPending = detectiveContext.CaseStatements.Any( s => s.ParticipantId == participant.Id
+                        && s.Id != statementEntity.Id
+                        && ( s.RequestStatus == StatementRequestStatus.Requested || s.RequestStatus == StatementRequestStatus.Reminded ) );
+
+                    if ( !hasOtherPending )
+                    {
+                        WitnessReminderHelper.CompleteReminders( caseFile.Id, participant.PersonAliasId.Value );
+                    }
+                }
+
+                return ActionOk( BuildBag( detectiveContext, caseFile ) );
+            } );
+        }
+
+        [BlockAction]
         public BlockActionResult StatementToFact( string idKey, string statementIdKey, string factText, bool isCorroborated )
         {
             return WithEditableCase( idKey, ( detectiveContext, caseFile ) =>
@@ -1385,9 +1452,23 @@ namespace com.yesuchum.RockDetective.Blocks
                     return ActionNotFound( "Statement not found." );
                 }
 
+                var isPending = statement.RequestStatus == StatementRequestStatus.Requested || statement.RequestStatus == StatementRequestStatus.Reminded;
+                var participant = new CaseParticipantService( detectiveContext ).Get( statement.ParticipantId );
+
                 statementService.Delete( statement );
                 StampModified( caseFile );
                 detectiveContext.SaveChanges();
+
+                if ( isPending && participant?.PersonAliasId != null )
+                {
+                    var hasOtherPending = detectiveContext.CaseStatements.Any( s => s.ParticipantId == participant.Id
+                        && ( s.RequestStatus == StatementRequestStatus.Requested || s.RequestStatus == StatementRequestStatus.Reminded ) );
+
+                    if ( !hasOtherPending )
+                    {
+                        WitnessReminderHelper.CompleteReminders( caseFile.Id, participant.PersonAliasId.Value );
+                    }
+                }
 
                 return ActionOk( BuildBag( detectiveContext, caseFile ) );
             } );

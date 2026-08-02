@@ -162,7 +162,7 @@
                     <ParticipantsPanel :participants="caseFile.participants" :ownerName="caseFile.ownerName" :canEdit="canEdit && !isLocked"
                                        @save="onSaveParticipant" @delete="onDeleteParticipant"
                                        @createRequest="onCreateRequest" @sendRequest="onSendRequest"
-                                       @recordStatement="onRecordStatement" @statementToFact="onStatementToFact"
+                                       @recordStatement="onRecordStatement" @recordResponse="onRecordResponse" @statementToFact="onStatementToFact"
                                        @deleteStatement="onDeleteStatement" />
                 </div>
             </div>
@@ -437,6 +437,10 @@
 
     function onRecordStatement(participantIdKey: string, statement: string, binaryFileGuid: string | null, url: string | null, addToFacts: boolean, isCorroborated: boolean): void {
         invoke("RecordStatement", { participantIdKey, statement, binaryFileGuid, url, addToFacts, isCorroborated });
+    }
+
+    function onRecordResponse(statementIdKey: string, statement: string, binaryFileGuid: string | null, url: string | null, addToFacts: boolean, isCorroborated: boolean): void {
+        invoke("RecordStatementResponse", { statementIdKey, statement, binaryFileGuid, url, addToFacts, isCorroborated });
     }
 
     function onStatementToFact(statementIdKey: string, factText: string, isCorroborated: boolean): void {
