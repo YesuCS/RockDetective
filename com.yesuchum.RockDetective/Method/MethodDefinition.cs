@@ -163,7 +163,7 @@ namespace com.yesuchum.RockDetective.Method
 
         public static PhaseDefinition GetPhase( CasePhase phase )
         {
-            return Phases.First( p => p.Phase == phase );
+            return Phases.FirstOrDefault( p => p.Phase == phase ) ?? Phases[0];
         }
     }
 }
