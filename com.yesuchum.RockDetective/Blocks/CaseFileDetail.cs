@@ -35,6 +35,12 @@ namespace com.yesuchum.RockDetective.Blocks
         Order = 1,
         Key = AttributeKey.SendRequestsAutomatically )]
 
+    [BooleanField( "Restrict Phase Jumping",
+        Description = "When on, phases must be entered in order by completing the previous phase; the stepper only allows revisiting phases that have already been started. When off, any phase can be selected at any time.",
+        DefaultBooleanValue = false,
+        Order = 2,
+        Key = AttributeKey.RestrictPhaseJumping )]
+
     [IntegerField( "Minimum Facts (Advanced)",
         Description = "Facts required before the Fact List phase can complete on a Advanced case. The method's ideal is 3; a real fact list keeps growing well past the gate.",
         DefaultIntegerValue = 3,
@@ -98,6 +104,7 @@ namespace com.yesuchum.RockDetective.Blocks
         {
             public const string WitnessStatementPage = "WitnessStatementPage";
             public const string SendRequestsAutomatically = "SendRequestsAutomatically";
+            public const string RestrictPhaseJumping = "RestrictPhaseJumping";
             public const string AdvancedMinimumFacts = "AdvancedMinimumFacts";
             public const string SimpleMinimumFacts = "SimpleMinimumFacts";
             public const string AdvancedMinimumHypotheses = "AdvancedMinimumHypotheses";
@@ -176,6 +183,7 @@ namespace com.yesuchum.RockDetective.Blocks
                 box.CanAdministrate = caseFile.IsAuthorized( Rock.Security.Authorization.ADMINISTRATE, currentPerson );
                 box.IsOwner = IsOwner( caseFile, currentPerson );
                 box.IsChampion = IsInRole( entities.Participants, currentPerson, ParticipantRole.Champion );
+                box.IsPhaseJumpingRestricted = GetAttributeValue( AttributeKey.RestrictPhaseJumping ).AsBoolean();
             }
 
             return box;
@@ -493,7 +501,20 @@ namespace com.yesuchum.RockDetective.Blocks
         {
             return WithEditableCase( idKey, ( detectiveContext, caseFile ) =>
             {
-                caseFile.CurrentPhase = ( CasePhase ) phase;
+                var isRestricted = GetAttributeValue( AttributeKey.RestrictPhaseJumping ).AsBoolean();
+                var targetPhase = ( CasePhase ) phase;
+
+                if ( isRestricted && targetPhase != caseFile.CurrentPhase )
+                {
+                    var targetState = CaseMapper.GetPhaseStates( caseFile ).GetState( targetPhase );
+
+                    if ( targetState.Progress == PhaseProgress.NotStarted )
+                    {
+                        return ActionBadRequest( "Phases must be entered in order. Complete the current phase to advance." );
+                    }
+                }
+
+                caseFile.CurrentPhase = targetPhase;
 
                 var states = CaseMapper.GetPhaseStates( caseFile );
                 var state = states.GetState( caseFile.CurrentPhase );

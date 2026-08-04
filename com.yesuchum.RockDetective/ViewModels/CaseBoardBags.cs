@@ -23,6 +23,8 @@ namespace com.yesuchum.RockDetective.ViewModels
 
         public bool IsChampion { get; set; }
 
+        public bool IsPhaseJumpingRestricted { get; set; }
+
         public List<CategoryOptionBag> Categories { get; set; } = new List<CategoryOptionBag>();
 
         public string ErrorMessage { get; set; }

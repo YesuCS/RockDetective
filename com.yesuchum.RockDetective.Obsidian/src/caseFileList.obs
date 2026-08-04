@@ -33,7 +33,7 @@
         <TextColumn name="caseNumber" title="Case #" field="caseNumber" :filter="textValueFilter" width="120px" visiblePriority="xs" />
         <TextColumn name="title" title="Title" field="title" :filter="textValueFilter" visiblePriority="xs" />
         <TextColumn name="categoryName" title="Category" field="categoryName" :filter="pickExistingValueFilter" width="140px" visiblePriority="md" />
-        <TextColumn v-if="activeView !== 'Archive'" name="status" title="Status" field="status" :filter="pickExistingValueFilter" width="120px" visiblePriority="xs" />
+        <TextColumn v-if="activeView !== 'Archive'" name="status" title="Status" field="status" :filter="pickExistingValueFilter" width="150px" visiblePriority="xs" />
         <TextColumn v-if="activeView !== 'Archive'" name="phase" title="Phase" field="phase" :filter="pickExistingValueFilter" width="140px" visiblePriority="md" />
         <TextColumn name="mode" title="Mode" field="mode" :filter="pickExistingValueFilter" width="110px" visiblePriority="md" />
         <TextColumn name="ownerName" title="Owner" field="ownerName" :filter="pickExistingValueFilter" width="150px" visiblePriority="md" />

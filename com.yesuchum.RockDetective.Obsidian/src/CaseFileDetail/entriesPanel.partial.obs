@@ -8,7 +8,8 @@
 
         <p v-if="!items.length" class="text-muted">{{ emptyText }}</p>
 
-        <table v-else class="table">
+        <div v-else class="table-responsive">
+        <table class="table">
             <tbody>
                 <tr v-for="entry in items" :key="entry.idKey ?? entry.text">
                     <td v-if="entryType === 1" style="width: 160px; white-space: nowrap;">
@@ -37,6 +38,7 @@
                 </tr>
             </tbody>
         </table>
+        </div>
 
         <Modal v-model="isModalOpen" :title="modalTitle" saveText="Save" @save="onSave">
             <RockForm>

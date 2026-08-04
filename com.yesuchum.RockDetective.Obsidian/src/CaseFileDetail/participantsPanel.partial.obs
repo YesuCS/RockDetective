@@ -10,7 +10,8 @@
 
         <p v-if="!participants.length" class="text-muted">All roles except owner are optional; small problems skip them. Add a Champion for a sanity check on the final explanation.</p>
 
-        <table v-else class="table">
+        <div v-else class="table-responsive">
+        <table class="table">
             <tbody>
                 <template v-for="participant in participants" :key="participant.idKey ?? ''">
                     <tr>
@@ -73,6 +74,7 @@
                 </template>
             </tbody>
         </table>
+        </div>
 
         <Modal v-model="isEditOpen" :title="editing.idKey ? 'Edit Participant' : 'Add Participant'" saveText="Save" @save="onSaveParticipant">
             <RockForm>

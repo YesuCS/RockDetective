@@ -8,7 +8,7 @@
             {{ notification }}
         </NotificationBox>
 
-        <Panel type="block" :headerSecondaryActions="headerSecondaryActions">
+        <Panel type="block" class="rd-board" :headerSecondaryActions="headerSecondaryActions">
             <template #title>
                 <span class="text-muted mr-2">{{ caseFile.caseNumber }}</span>{{ caseFile.title }}
             </template>
@@ -54,6 +54,7 @@
                           :phaseStates="caseFile.phaseStates"
                           :currentPhase="caseFile.currentPhase"
                           :isSimpleMode="caseFile.mode === 0"
+                          :isJumpRestricted="config.isPhaseJumpingRestricted"
                           @phaseSelected="onPhaseSelected" />
 
             <Panel title="Standing Principles" :hasCollapse="true" :isDrawerOpen="false">
@@ -71,12 +72,28 @@
                 <p class="text-muted">{{ activeDefinition?.guidance }}</p>
 
                 <template v-if="activePhase === 2 && canEdit && !isLocked">
-                    <TextBox v-model="problemEdit.title" label="Title" />
-                    <TextBox v-model="problemEdit.problemStatement" label="Problem Statement" textMode="multiline" :rows="3" />
-                    <DropDownList v-model="problemEdit.categoryGuid" label="Category" :items="categoryItems" />
-                    <CheckBox v-model="problemEdit.attestNoUnverifiedDetails" label="This statement contains no unverified details" />
-                    <CheckBox v-model="problemEdit.attestNothingNotGermane" label="This statement contains nothing that is not germane" />
-                    <RockButton :btnType="BtnType.Default" :btnSize="BtnSize.Small" class="mb-3" @click="onSaveProblem">Save Problem Definition</RockButton>
+                    <template v-if="isEditingProblem">
+                        <TextBox v-model="problemEdit.title" label="Title" />
+                        <TextBox v-model="problemEdit.problemStatement" label="Problem Statement" textMode="multiline" :rows="3" />
+                        <DropDownList v-model="problemEdit.categoryGuid" label="Category" :items="categoryItems" />
+                        <CheckBox v-model="problemEdit.attestNoUnverifiedDetails" label="This statement contains no unverified details" />
+                        <CheckBox v-model="problemEdit.attestNothingNotGermane" label="This statement contains nothing that is not germane" />
+                        <div class="d-flex mb-3" style="gap: 8px;">
+                            <RockButton :btnType="BtnType.Primary" :btnSize="BtnSize.Small" @click="onSaveProblem">Save Problem Definition</RockButton>
+                            <RockButton v-if="caseFile.problemStatement" :btnType="BtnType.Default" :btnSize="BtnSize.Small" @click="isEditingProblem = false">Cancel</RockButton>
+                        </div>
+                    </template>
+                    <template v-else>
+                        <div class="mb-3">
+                            <p class="mb-1"><strong>Problem Statement</strong>
+                                <button type="button" class="btn btn-xs btn-link" title="Edit problem definition" @click="onEditProblem"><i class="ti ti-pencil"></i></button>
+                            </p>
+                            <p style="white-space: pre-wrap;" class="mb-2">{{ caseFile.problemStatement }}</p>
+                            <p class="text-muted mb-1"><strong>Category:</strong> {{ activeCategoryName }}</p>
+                            <p v-if="problemEdit.attestNoUnverifiedDetails" class="text-muted mb-0"><i class="ti ti-circle-check text-success mr-1"></i>No unverified details</p>
+                            <p v-if="problemEdit.attestNothingNotGermane" class="text-muted mb-0"><i class="ti ti-circle-check text-success mr-1"></i>Nothing that is not germane</p>
+                        </div>
+                    </template>
                 </template>
 
                 <template v-else>
@@ -294,16 +311,17 @@
         return RockDateTime.parseISO(value)?.toASPString("d") ?? value;
     }
 
-    async function invoke(action: string, parameters: Record<string, unknown>): Promise<void> {
+    async function invoke(action: string, parameters: Record<string, unknown>): Promise<boolean> {
         const result = await invokeBlockAction<CaseFileBag>(action, { idKey: caseFile.value?.idKey, ...parameters });
 
         if (result.isSuccess && result.data) {
             caseFile.value = result.data;
+            return true;
         }
-        else {
-            notification.value = result.errorMessage ?? "The action failed.";
-            notificationType.value = AlertType.Danger;
-        }
+
+        notification.value = result.errorMessage ?? "The action failed.";
+        notificationType.value = AlertType.Danger;
+        return false;
     }
 
     const phaseSummary = ref("");
@@ -345,19 +363,45 @@
     }, { immediate: true });
 
     function onPhaseSelected(phase: number): void {
-        if (canEdit && !isLocked.value) {
-            invoke("SetCurrentPhase", { phase });
+        if (!canEdit || isLocked.value) {
+            return;
         }
+
+        if (config.isPhaseJumpingRestricted && phase !== caseFile.value?.currentPhase) {
+            const progress = caseFile.value?.phaseStates.find(s => s.phase === phase)?.progress ?? 0;
+            if (progress === 0) {
+                return;
+            }
+        }
+
+        invoke("SetCurrentPhase", { phase });
     }
 
-    function onSaveProblem(): void {
-        invoke("SaveProblemDefinition", {
+    const isEditingProblem = ref(false);
+
+    watch(() => caseFile.value?.problemStatement, () => {
+        isEditingProblem.value = !caseFile.value?.problemStatement;
+    }, { immediate: true });
+
+    const activeCategoryName = computed(() =>
+        categoryItems.value.find(c => c.value === (caseFile.value?.categoryGuid ?? ""))?.text ?? "None");
+
+    function onEditProblem(): void {
+        isEditingProblem.value = true;
+    }
+
+    async function onSaveProblem(): Promise<void> {
+        const isSaved = await invoke("SaveProblemDefinition", {
             title: problemEdit.title,
             problemStatement: problemEdit.problemStatement,
             categoryGuid: problemEdit.categoryGuid,
             attestNoUnverifiedDetails: problemEdit.attestNoUnverifiedDetails,
             attestNothingNotGermane: problemEdit.attestNothingNotGermane
         });
+
+        if (isSaved && problemEdit.problemStatement) {
+            isEditingProblem.value = false;
+        }
     }
 
     async function onSavePhaseNotes(): Promise<void> {
@@ -510,3 +554,25 @@
         }
     }
 </script>
+
+<style>
+.rd-board .table-responsive {
+    border: 0;
+    margin-bottom: 0;
+}
+
+@media (max-width: 767px) {
+    .rd-board .panel-body {
+        padding: 12px;
+    }
+
+    .rd-board .rd-stepper .btn {
+        font-size: 11px;
+        padding: 3px 6px;
+    }
+
+    .rd-board .panel-title {
+        font-size: 15px;
+    }
+}
+</style>
