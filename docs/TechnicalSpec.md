@@ -48,11 +48,15 @@ These were all learned the hard way; do not undo them:
 
 `Method/MethodDefinition.cs` holds the nine phases, prompts, principles, and contextual tips as code; they are method content, not user data. `Method/GateEvaluator.cs` is a pure function over a `CaseAggregate` snapshot; it takes a `GateRequirementOptions` whose values come from Case Board block settings (defaults match the method). Simple mode auto-skips Define the Team and Timeline and uses the Simple minimums. The evaluator is fully unit-tested in the Tests project; run `dotnet test`.
 
-Phase completion, loop-back (5 through 8), champion sign-off, mode upgrade (Simple to Advanced only), abandon and resume, close and reopen are all block actions on the Case Board that re-check gates server-side. Never trust the client.
+Phase completion, loop-back (5 through 8), champion sign-off, mode upgrade (Simple to Advanced only), abandon and resume, close and reopen are all block actions on the Case Board that re-check gates server-side. Never trust the client. When the Restrict Phase Jumping block setting is on, SetCurrentPhase also rejects any phase whose state is NotStarted; the stepper disables those buttons but the server check is the real gate. `GetPhase` falls back to the first phase on an unknown value so one corrupt row cannot crash the Case File List.
 
 ## Witness flow
 
-CreateStatementRequest makes a CaseStatement in Draft (auto-sends if the block setting is on and the participant is a Rock person). SendStatementRequest emails the request or, if already Requested/Reminded, a reminder; the link targets the Witness Statement page with `?Statement={IdKey}`. The witness page authorizes by matching the logged-in person to the participant's alias (case editors can also open it). External participants are manual-record only. The reminder job re-sends after Reminder Days and flips status to Reminded; overdue is Sent more than 7 days ago and still open.
+CreateStatementRequest makes a CaseStatement in Draft (auto-sends if the block setting is on and the participant is a Rock person). SendStatementRequest emails the request or, if already Requested/Reminded, a reminder; the link targets the Witness Statement page with `?Statement={IdKey}` (a Guid also resolves). The witness page authorizes by matching the logged-in person to the participant's alias (case editors can also open it). External participants are manual-record only. The reminder job re-sends after Reminder Days and flips status to Reminded; overdue is Sent more than 7 days ago and still open.
+
+Every send attempt also creates (or refreshes) a core Rock `Reminder` for the witness via `Data/WitnessReminderHelper.cs`, before the email goes out so a broken mail transport still nudges them in Rock. The helper lazily creates a "Witness Statement Request" `ReminderType` (stable GUID, entity type CaseStatement) and stamps the CaseStatement entity type's `LinkUrlLavaTemplate` with the Witness Statement page URL so the bell-menu card titles itself from `CaseStatement.ToString()` (the prompt) and links straight to the entry form. Reminders complete automatically when the statement is submitted, declined, recorded inline, or deleted, and `RecalculateReminderCount` keeps the bell badge current both ways.
+
+RecordStatementResponse fills a pending request from the board (owner heard the answer in person): statement text, optional attachment and link, status ManuallyRecorded, and the witness's reminder completes. It rejects requests that were already answered.
 
 ## Jobs
 

@@ -41,8 +41,10 @@ Panels:
 
 A witness can be a Rock person or an external person (name plus contact text). Each request is its own statement, so one person can be asked several times.
 
-- **Rock people**: create a request with a prompt, then send it. They get an email with a link to the Witness Statement page where they submit or decline, optionally attaching a file or link. Unanswered requests get a reminder from the job after the configured number of days, and show an overdue flag on the case list.
+- **Rock people**: create a request with a prompt, then send it. They get an email with a link to the Witness Statement page where they submit or decline, optionally attaching a file or link, and an in-Rock reminder in the bell menu that links straight to the same page. The reminder completes automatically when the request is answered, declined, recorded, or deleted. Unanswered requests get an email reminder from the job after the configured number of days, and show an overdue flag on the case list.
 - **External people**: no communication is sent. Gather their statement however you reach them and record it manually, with optional attachment and link.
+
+Any pending request also has a **Record their response** action on the board for when the witness answers you in person; it fills that request rather than creating a separate manual statement.
 
 Any statement can be promoted to the fact list; edit it down to the specific, pertinent fact first and mark corroboration deliberately.
 
@@ -62,6 +64,7 @@ On the **Case Board** block:
 
 - **Gate Requirements** category: minimum facts, root hypotheses, timeline events, and completed experiments per mode, plus whether the problem statement attestations are required. Each setting's description states the method's ideal; loosen them only if you know why.
 - **Send Requests Automatically**: when on, creating a witness request emails immediately instead of starting as a draft.
+- **Restrict Phase Jumping**: when on, the stepper only allows phases that have already been started; new phases unlock by completing the previous one. When off (the default), any phase can be selected at any time.
 
 On the **Case File List** block:
 
