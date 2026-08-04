@@ -561,14 +561,21 @@
     margin-bottom: 0;
 }
 
+.rd-board .rd-stepper-select {
+    display: none;
+}
+
 @media (max-width: 767px) {
     .rd-board .panel-body {
         padding: 12px;
     }
 
-    .rd-board .rd-stepper .btn {
-        font-size: 11px;
-        padding: 3px 6px;
+    .rd-board .rd-stepper {
+        display: none !important;
+    }
+
+    .rd-board .rd-stepper-select {
+        display: block;
     }
 
     .rd-board .panel-title {

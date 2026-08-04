@@ -101,7 +101,15 @@
 
     const binaryFileTypeGuid = "C1142570-8CD6-4A20-83B1-ACB47C1CD377";
 
-    const items = computed(() => props.entries.filter(e => e.entryType === props.entryType));
+    const items = computed(() => {
+        const filtered = props.entries.filter(e => e.entryType === props.entryType);
+
+        if (props.entryType !== 1) {
+            return filtered;
+        }
+
+        return [...filtered].sort((a, b) => (a.eventDateTime ?? "").localeCompare(b.eventDateTime ?? ""));
+    });
 
     type EntryEdit = {
         idKey: string | null;

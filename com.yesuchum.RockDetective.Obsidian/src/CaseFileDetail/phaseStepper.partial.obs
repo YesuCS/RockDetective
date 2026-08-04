@@ -1,4 +1,14 @@
 <template>
+    <div class="rd-stepper-select mb-3">
+        <select class="form-control" :value="String(currentPhase)" @change="onSelectChange">
+            <option v-for="definition in visibleDefinitions" :key="definition.phase"
+                    :value="String(definition.phase)"
+                    :disabled="isPhaseDisabled(definition.phase)">
+                {{ progressOf(definition.phase) === 2 ? "✓ " : "" }}{{ definition.phase }}. {{ definition.name }}
+            </option>
+        </select>
+    </div>
+
     <div class="rd-stepper d-flex flex-wrap align-items-center mb-3" style="gap: 4px;">
         <template v-for="definition in visibleDefinitions" :key="definition.phase">
             <button type="button"
@@ -46,9 +56,17 @@
         }
     });
 
-    defineEmits<{
+    const emit = defineEmits<{
         (e: "phaseSelected", phase: number): void;
     }>();
+
+    function onSelectChange(event: Event): void {
+        const phase = Number((event.target as HTMLSelectElement).value);
+
+        if (phase && phase !== props.currentPhase) {
+            emit("phaseSelected", phase);
+        }
+    }
 
     const visibleDefinitions = computed(() =>
         props.definitions.filter(d => !props.isSimpleMode || !d.isAutoSkippedInSimpleMode || progressOf(d.phase) === 1 || progressOf(d.phase) === 2));
