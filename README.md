@@ -46,6 +46,8 @@ The builds copy their output into `RockWeb`, as described in the [Technical Spec
 
 All endpoints live under `/api/com_yesuchum/rockdetective` and require Rock REST authentication. They enforce entity security on the case: View for reads and Edit for writes, with a 401 when the check fails. `idKey` values are Rock IdKey hashes, as the API returns them. The point is that a monitoring script can open a case, seed facts, and later append experiment results without touching the UI.
 
+The full reference, with every field, response shape, and enum value, is in [docs/RestApi.md](docs/RestApi.md).
+
 | Method | Route | Description |
 |---|---|---|
 | GET | `/cases?status=&category=&owner=` | List the cases the caller can view, each as a full case aggregate. `status` is the numeric CaseStatus (0 Open, 1 Investigating, 2 Solved, 3 Closed, 4 Reopened, 5 Abandoned); `category` is a Category guid; `owner` is a Person guid. |

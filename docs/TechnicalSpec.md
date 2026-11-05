@@ -119,7 +119,7 @@ The three system communications are seeded under the Plugins category. Requests 
 
 ## REST API
 
-`api/com_yesuchum/rockdetective`, ApiControllerBase with `[Authenticate, Secured]` and a `[RestActionGuid]` on every action (without those attributes Rock registers the controller with zero actions). The endpoints are documented in the README. The design goal is that a monitoring script can open a case, seed facts, and append experiment results without touching the UI.
+`api/com_yesuchum/rockdetective`, ApiControllerBase with `[Authenticate, Secured]` and a `[RestActionGuid]` on every action (without those attributes Rock registers the controller with zero actions). Every endpoint, with request fields, responses, and examples, is documented in `docs/RestApi.md`. The design goal is that a monitoring script can open a case, seed facts, and append experiment results without touching the UI.
 
 Behavior to know about:
 
