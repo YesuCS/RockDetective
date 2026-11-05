@@ -1,12 +1,14 @@
 # Rock Detective
 
-Self-contained Rock RMS Obsidian plugin that runs problems through Jon Edmiston's Triumphant Problem Solving method as case files. A case owner works nine gated phases; witnesses submit or have statements recorded; facts, a probability tree, and experiments live on a case board with a first-class 5-through-8 loop; closed cases become a searchable archive with a postmortem and PDF export. Any problem type fits: bugs, performance, process, ministry operations.
+Rock Detective is a self-contained Rock RMS Obsidian plugin that runs problems through Jon Edmiston's Triumphant Problem Solving method as case files. A case owner works nine gated phases, and witnesses submit statements or have them recorded. Facts, a probability tree, and experiments live on a case board with a loop through phases 5 to 8. Closed cases go to an archive with a postmortem and a PDF export. Any problem type fits: bugs, performance, process, ministry operations.
+
+The current version is 1.0.1, and it needs Rock 18.2 or later.
 
 ## Documentation
 
-- [User Guide](docs/UserGuide.md). Install, opening a case, the Case Board, witness statements, closing and follow-up, block settings, security.
-- [Technical Specification](docs/TechnicalSpec.md). Architecture, schema, entity plumbing gotchas, gate evaluator, witness flow, jobs, REST, PDF, migrations, build and deploy.
-- [Uninstall Guide](docs/Uninstall.md). File removal, data removal SQL, Rock configuration housekeeping.
+- [User Guide](docs/UserGuide.md): install, opening a case, the Case Board, witness statements, closing and follow-up, settings, security.
+- [Technical Specification](docs/TechnicalSpec.md): architecture, schema, entity plumbing, gate evaluator, witness flow, jobs, PDF, migrations, build and deploy.
+- [Uninstall Guide](docs/Uninstall.md): file removal, data removal SQL, Rock configuration cleanup.
 
 ## Repo layout
 
@@ -14,8 +16,8 @@ Self-contained Rock RMS Obsidian plugin that runs problems through Jon Edmiston'
 com.yesuchum.RockDetective/           C# class library: entities, blocks,
                                       jobs, REST API, PDF export, plugin
                                       migration, gate evaluator.
-com.yesuchum.RockDetective.Obsidian/  Vue 3 plus TypeScript Obsidian
-                                      frontends for the three block types.
+com.yesuchum.RockDetective.Obsidian/  Vue 3 and TypeScript Obsidian
+                                      frontends for the three blocks.
 com.yesuchum.RockDetective.Tests/     MSTest unit tests for the gate
                                       evaluator.
 docs/                                 User guide, technical spec, uninstall.
@@ -23,7 +25,7 @@ docs/                                 User guide, technical spec, uninstall.
 
 ## Build
 
-C# class library and tests:
+The repo is built inside a Rock source checkout, because the projects reference the Rock source projects and `RockWeb` by relative path. C# class library and tests:
 
 ```
 dotnet build com.yesuchum.RockDetective
@@ -38,18 +40,20 @@ npm install
 npm run build
 ```
 
-Outputs deploy into a Rock install as described in `docs/TechnicalSpec.md`; a Rock restart runs the plugin migration.
+The builds copy their output into `RockWeb`, as described in the [Technical Specification](docs/TechnicalSpec.md). A Rock restart runs the plugin migration.
 
 ## REST API
 
-All endpoints live under `/api/com_yesuchum/rockdetective`, require Rock REST authentication, and enforce entity security on the case (View for reads, Edit for writes). `idKey` values are Rock IdKey hashes as returned by the API itself. The intent: a monitoring script can open a case, seed facts, and later append experiment results without touching the UI.
+All endpoints live under `/api/com_yesuchum/rockdetective` and require Rock REST authentication. They enforce entity security on the case: View for reads and Edit for writes, with a 401 when the check fails. `idKey` values are Rock IdKey hashes, as the API returns them. The point is that a monitoring script can open a case, seed facts, and later append experiment results without touching the UI.
+
+The full reference, with every field, response shape, and enum value, is in [docs/RestApi.md](docs/RestApi.md).
 
 | Method | Route | Description |
 |---|---|---|
-| GET | `/cases?status=&category=&owner=` | List cases the caller can view. `status` is the numeric CaseStatus (0 Open, 1 Investigating, 2 Solved, 3 Closed, 4 Reopened, 5 Abandoned); `category` is a Category guid; `owner` is a Person guid. |
+| GET | `/cases?status=&category=&owner=` | List the cases the caller can view, each as a full case aggregate. `status` is the numeric CaseStatus (0 Open, 1 Investigating, 2 Solved, 3 Closed, 4 Reopened, 5 Abandoned); `category` is a Category guid; `owner` is a Person guid. |
 | GET | `/cases/{idKey}` | Full case aggregate: case fields, phase states, gate results, entries, hypotheses, experiments, participants with statements. |
 | POST | `/cases` | Create a case. Body: `{ title, problemStatement, categoryGuid, mode }` where mode is 0 Simple or 1 Advanced. The caller becomes the owner. |
-| PATCH | `/cases/{idKey}` | Update `title`, `problemStatement`, `status`, or `currentPhase`. Advancing `currentPhase` past an unmet gate is rejected. |
+| PATCH | `/cases/{idKey}` | Update `title`, `problemStatement`, `status`, or `currentPhase`. Advancing `currentPhase` past an unmet gate is rejected, using the default gate requirements. `status` is set as given. |
 | GET | `/cases/{idKey}/entries` | List entries (facts, timeline events, evidence). |
 | POST | `/cases/{idKey}/entries` | Add an entry. Body: `{ entryType, text, eventDateTime?, timelineEventType?, url?, isCorroborated? }` where entryType is 0 Fact, 1 TimelineEvent, 2 Evidence. |
 | POST | `/cases/{idKey}/hypotheses` | Add a hypothesis. Body: `{ name, description?, probability, parentHypothesisIdKey? }`. |
@@ -57,10 +61,12 @@ All endpoints live under `/api/com_yesuchum/rockdetective`, require Rock REST au
 | POST | `/cases/{idKey}/experiments` | Add an experiment. Body: `{ hypothesisIdKey?, hypothesisText?, testPlan?, expectedResult? }`. One of the hypothesis fields is required. |
 | PATCH | `/experiments/{idKey}` | Update `actualResult`, `outcome` (0 Pending, 1 Supported, 2 RuledOut, 3 Inconclusive), `changesMade`, `changesReverted`, `learnings`. |
 | POST | `/cases/{idKey}/participants` | Add a participant. Body: `{ personAliasGuid?, externalName?, externalContact?, role }` where role is 0 Owner through 5 Witness. One of personAliasGuid or externalName is required. |
-| POST | `/participants/{idKey}/request-statement` | Create a witness statement request; returns the new statement. Body: `{ "requestPrompt": "..." }`. Each request is its own statement (a witness can have several); it starts as a draft and sending is done from the case board. |
+| POST | `/participants/{idKey}/request-statement` | Create a witness statement request and return the new statement. Body: `{ "requestPrompt": "..." }`. Each request is its own statement (a witness can have several). It starts as a draft, and sending is done from the Case Board. |
 | GET | `/cases/{idKey}/pdf` | The full case file as a PDF (`application/pdf` attachment). |
 
-Example: open a case from a monitoring alert, then seed a fact.
+### Example
+
+Open a case from a monitoring alert, then seed a fact.
 
 ```bash
 curl -X POST https://rock.example.org/api/com_yesuchum/rockdetective/cases \
