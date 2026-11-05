@@ -166,4 +166,4 @@ npm install
 npm run build                                              dist\*.obs.js, auto-copies to RockWeb\Plugins\com_yesuchum\RockDetective
 ```
 
-The `.plugin` package is a zip of `content/` (bin DLL plus Plugins output), `install/`, and `uninstall/deletefile.lst`, named `com.yesuchum.RockDetective.{version}.plugin`. The version comes from the csproj.
+The `.plugin` package is a zip of `content/` (bin DLL plus Plugins output), `install/`, and `uninstall/` (`deletefile.lst` plus `run.sql`), named `com.yesuchum.RockDetective.{version}.plugin`. The version comes from the csproj.

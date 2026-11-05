@@ -1,12 +1,18 @@
 # Rock Detective Uninstall Guide
 
-The package ships with uninstall support (`uninstall/deletefile.lst` plus the migration `Down()` method), but Rock's package manager does not yet run plugin down-migrations. A clean removal is file deletion plus a short SQL pass, then some optional housekeeping in Rock.
+## Uninstalling or downgrading through Rock
+
+Rock doesn't support uninstalling or downgrading plugins yet. The Rock Shop can install a plugin and update it to a newer version, but at the time this was written (November 2026) there's no way to remove a plugin or roll it back to an older version from inside Rock.
+
+Rock Detective is ready for when Spark adds that. The package ships an `uninstall` folder with the file list and a `run.sql` that drops its tables, and its migration has a `Down()`, so Rock will have what it needs once it can do this on its own. Until then, uninstalling is the manual process below, and downgrading means uninstalling and then installing the older version by hand.
+
+Removing it by hand is file deletion plus a short SQL pass, then some optional housekeeping in Rock.
 
 Back up the database before you start. The SQL below deletes case data for good.
 
 ## Remove the files
 
-Use the package manager's uninstall if your Rock version supports it, or delete these by hand:
+Delete these from the Rock web root on the server:
 
 ```
 RockWeb\Bin\com.yesuchum.RockDetective.dll
