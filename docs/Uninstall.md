@@ -59,6 +59,12 @@ All of this is optional housekeeping; none of it breaks anything if left behind.
   ```sql
   DELETE FROM [Attribute] WHERE [Key] LIKE 'com_yesuchum_RockDetective_%';
   ```
+- **AI skill:** the **Rock Detective** skill under Admin Tools > System > AI Agents > AI Skills. Remove it from any agent first. Or run this, which does both:
+  ```sql
+  DELETE [as] FROM [AIAgentSkill] AS [as] INNER JOIN [AISkill] AS [s] ON [s].[Id] = [as].[AISkillId] WHERE [s].[Guid] = '2C5BE126-3BEC-4B15-A2F4-80FD685ABE84';
+  DELETE [t] FROM [AISkillTool] AS [t] INNER JOIN [AISkill] AS [s] ON [s].[Id] = [t].[AISkillId] WHERE [s].[Guid] = '2C5BE126-3BEC-4B15-A2F4-80FD685ABE84';
+  DELETE FROM [AISkill] WHERE [Guid] = '2C5BE126-3BEC-4B15-A2F4-80FD685ABE84';
+  ```
 - **REST controller:** the **RockDetectiveMcp** entry under Admin Tools > Security > REST Controllers goes away on its own once the DLL is gone and Rock restarts. Delete the REST key you made for it if nothing else uses it.
 
 ## Restart

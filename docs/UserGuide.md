@@ -6,7 +6,7 @@ It works for more than software bugs. Performance problems, broken processes, an
 
 ## Install
 
-There are two ways to install Rock Detective: from the Rock Shop, or by hand on the server Rock runs on. The plugin needs Rock 18.2 or later. Rock doesn't have a page for uploading a `.plugin` file, so a manual install happens on the server, not in the browser.
+There are two ways to install Rock Detective: from the Rock Shop, or by hand on the server Rock runs on. The plugin needs Rock 19.7 or later. Rock doesn't have a page for uploading a `.plugin` file, so a manual install happens on the server, not in the browser.
 
 ### From the Rock Shop
 
@@ -36,7 +36,7 @@ Only the `content` folder gets copied. Anything else in the package is for the R
 - Two scheduled jobs, **Rock Detective Witness Reminders** and **Rock Detective Follow-Up Checks**, both active by default.
 - Three system communications you can reword under Admin Tools > Communications > System Communications (search "Rock Detective").
 - Four case categories: Software Bug, Performance, Process, and Ministry Operations.
-- An MCP endpoint, so an AI assistant can read cases and search the web server's IIS logs. See the [MCP Guide](Mcp.md).
+- A **Rock Detective** skill for Rock's AI agents, plus a direct MCP endpoint, so an AI assistant can read cases and search the web server's IIS logs. See the [MCP Guide](Mcp.md).
 
 The migration does not set any page security, so the pages inherit it from Installed Plugins. If people outside Rock Administration will use Rock Detective, give them View on the Rock Detective page, the Case Board, and the Witness Statement page, and put them in the Rock Detective Users role. Terminology Settings is for administrators. Only people with Administrate on its block can see or change the wording, and everyone else gets a notice instead.
 

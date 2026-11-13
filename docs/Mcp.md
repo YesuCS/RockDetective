@@ -1,35 +1,59 @@
 # Rock Detective MCP Guide
 
-MCP (Model Context Protocol) is how an AI assistant like Claude talks to another system. Rock Detective has its own MCP endpoint, so you can ask an assistant things like "what cases are open?" or "show me the 500 errors from the last hour" and it gets the answer straight from your Rock server.
+MCP (Model Context Protocol) is how an AI assistant like Claude talks to another system. Rock Detective plugs into it, so you can ask an assistant things like "what cases are open?" or "show me the 500 errors from the last hour" and it gets the answer straight from your Rock server.
 
-This guide covers turning it on, connecting an assistant, the tools it gets, and the IIS log search. You don't need to know how MCP works to use it.
+This guide covers the two ways to connect, the tools the assistant gets, and the IIS log search. You don't need to know how MCP works to use it.
 
-## What you need
+## Two ways to connect
 
-- Rock Detective 1.1.0 or later.
-- A Rock REST key for the person the assistant will act as.
-- An MCP client that can connect to a server by URL and send a custom header. Claude Code and Claude Desktop both can.
+| | Rock's MCP server | Direct endpoint |
+|---|---|---|
+| What it is | Rock Detective shows up as a skill you add to one of Rock's own AI agents. | An MCP endpoint that belongs to Rock Detective. |
+| Address | `/api/v2/mcp/{your agent's slug}` | `/api/com_yesuchum/rockdetective/mcp` |
+| Best for | Most churches. Rock Detective sits next to Rock's other skills (people, groups, giving) in one connection. | A quick connection with nothing but a REST key, or a script that only needs Rock Detective. |
+| Who can search IIS logs | Rock administrators. | Whoever you allow on the REST action. |
 
-Rock Detective does not use Rock's built-in AI Agent MCP server. It ships its own endpoint, so it works the same on Rock 18.2, 19, and 20 and needs no AI provider set up in Rock.
+Both give the assistant the same three tools and the same answers. Start with Rock's MCP server unless you have a reason not to.
 
-## Step 1: Create a REST key
+Either way, you need Rock Detective 1.1.0 or later on Rock 19.7 or later.
 
-The assistant signs in to Rock with a REST key, and it can only see what that key's person can see.
+## Option 1: Rock's MCP server
+
+Rock registers a **Rock Detective** skill on its own when the plugin is installed and Rock restarts. All you do is add it to an agent.
+
+1. Go to **Admin Tools > System > AI Agents > Agents**.
+2. Open the MCP agent you already use, or add a new agent, set its type to **MCP**, and give it a slug like `rock-detective`.
+3. Add the **Rock Detective** skill to the agent and choose which of its three tools to turn on.
+4. Save. The agent's address is your Rock address plus `/api/v2/mcp/` plus the slug:
+
+```
+https://rock.example.org/api/v2/mcp/rock-detective
+```
+
+Connect your assistant to that address the same way you connect to any other Rock MCP agent. Who can use it is controlled by the agent's security in Rock.
+
+The tools show up to the assistant as **List Cases**, **Get Case**, and **Search IIS Logs**.
+
+## Option 2: The direct endpoint
+
+This one needs no agent. The assistant signs in with a Rock REST key and can only see what that key's person can see.
+
+### Create a REST key
 
 1. Go to **Admin Tools > Security > REST Keys** and add a key. Give it a name that says what it's for, like `Rock Detective MCP`.
-2. Copy the key. You'll paste it into your MCP client in step 3.
+2. Copy the key. You'll paste it into your MCP client below.
 3. Put the key's person in the **Rock Detective Users** security role so it can view and edit cases. Leave it out of that role if the assistant should only see cases it has been added to.
 
-## Step 2: Allow the key to call the endpoint
+### Allow the key to call the endpoint
 
 Rock secures every REST endpoint separately.
 
 1. Go to **Admin Tools > Security > REST Controllers** and open **RockDetectiveMcp**.
 2. On the **POST** action, click the padlock and give your REST key's person (or a role they are in) **View** and **Edit**.
 
-Rock Administration can already call it, so you can skip this step if the key belongs to an administrator.
+Rock Administration can already call it, so you can skip this if the key belongs to an administrator.
 
-## Step 3: Connect your assistant
+### Connect your assistant
 
 The endpoint is your Rock address plus this path:
 
@@ -45,15 +69,15 @@ In Claude Code:
 claude mcp add --transport http rock-detective https://rock.example.org/api/com_yesuchum/rockdetective/mcp --header "Authorization-Token: YOUR_REST_KEY"
 ```
 
-In any other client, add a remote (HTTP) MCP server with that URL and that header. Once it connects, the assistant lists three tools.
+In any other client, add a remote (HTTP) MCP server with that URL and that header. The tools show up as `list_cases`, `get_case`, and `search_iis_logs`.
 
 ## The tools
 
 | Tool | What it does | What you can pass |
 |---|---|---|
-| `list_cases` | Lists the cases the key's person can view, newest first. | `status` (Open, Investigating, Solved, Closed, Reopened, Abandoned) and `limit` (default 25, up to 100). |
-| `get_case` | Returns one whole case: phases, gate checklists, facts, timeline, evidence, hypotheses, experiments, participants, and statements. | `idKey`, which comes from `list_cases`. |
-| `search_iis_logs` | Searches the web server's IIS logs for recent requests. | See the next section. |
+| List Cases | Lists the cases the person can view, newest first. | `status` (Open, Investigating, Solved, Closed, Reopened, Abandoned) and `limit` (default 25, up to 100). |
+| Get Case | Returns one whole case: phases, gate checklists, facts, timeline, evidence, hypotheses, experiments, participants, and statements. | The case's IdKey, which comes from List Cases. |
+| Search IIS Logs | Searches the web server's IIS logs for recent requests. | See the next section. |
 
 Phase names, terms, and gate wording come back the way that case's category has them set up under Terminology Settings, so the assistant uses the same words your team sees on the Case Board.
 
@@ -61,7 +85,7 @@ The tools are read-only. To open a case or add to one from a script, use the [RE
 
 ## Searching IIS logs
 
-IIS writes a line for every request that reaches your web server. That makes the logs some of the best evidence you have when a page is failing or slow, and `search_iis_logs` lets you ask for exactly the slice you need.
+IIS writes a line for every request that reaches your web server. That makes the logs some of the best evidence you have when a page is failing or slow, and Search IIS Logs lets you ask for exactly the slice you need.
 
 | Option | What it does |
 |---|---|
@@ -133,6 +157,7 @@ Inside the block, `logEntries` is the list of entries and `logResult` has `Match
 
 ## Security
 
-- The assistant sees what its REST key's person can see. Case security applies to every call.
-- IIS logs include IP addresses and usernames. Anyone who can call the endpoint can search them, so give the endpoint to the same people you'd let read the logs on the server.
+- The assistant sees what its signed-in person can see. Case security applies to every call, on both routes.
+- IIS logs include IP addresses and usernames. Through Rock's MCP server, only Rock administrators can search them. Through the direct endpoint, anyone you allow on the REST action can, so give that to the same people you'd let read the logs on the server.
+- If you only want one route, leave the other closed: don't add the skill to an agent, or don't grant anyone the REST action.
 - The `iislogs` Lava command is off until an administrator enables it, the same as `execute` or `sql`.

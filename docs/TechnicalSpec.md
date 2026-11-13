@@ -1,6 +1,6 @@
 # Rock Detective Technical Specification
 
-Rock Detective is a self-contained Rock RMS plugin with no core modifications. It is a C# class library (net472) plus Obsidian frontends (Vue 3 and TypeScript) for the Triumphant Problem Solving method by Jon Edmiston. The plugin migration is numbered for Rock 18.2, which is the minimum version. The current version is 1.1.0.
+Rock Detective is a self-contained Rock RMS plugin with no core modifications. It is a C# class library (net472) plus Obsidian frontends (Vue 3 and TypeScript) for the Triumphant Problem Solving method by Jon Edmiston. The minimum Rock version is 19.7, which is where the 1.1.0 migrations are numbered and the first version the agent skill is built against. The current version is 1.1.0.
 
 ## Architecture
 
@@ -17,6 +17,7 @@ com.yesuchum.RockDetective/           C# class library
   Jobs/                               Two RockJob classes
   Pdf/                                HTML report builder
   Rest/                               ApiControllerBase REST and MCP controllers
+  Agent/                              The Rock Detective skill for Rock's AI agents
   Mcp/                                MCP tool definitions and handlers
   Logs/                               IIS W3C log reader
   Lava/                               The iislogs Lava command
@@ -151,9 +152,26 @@ Behavior to know about:
 - The same PATCH sets `status` as given, including Closed, without running the postmortem gate.
 - A case created through the API has no phase state, so it never gets the attestations or classify scores the list modal records.
 
-## MCP endpoint
+## MCP
 
-`Rest/RockDetectiveMcpController.cs` is a plugin-owned MCP server at `POST api/com_yesuchum/rockdetective/mcp`. It does not use Rock's AI Agent MCP server (`api/v2/mcp/{slug}`), because the code-skill base class that would let a plugin add tools there, `AgentSkillComponent`, is internal to Rock. Owning the endpoint also keeps it working on every Rock version the plugin supports.
+There are two routes to the same three tools. Both call the typed methods on `Mcp/McpToolService.cs` (`ListCases`, `GetCase`, `SearchIisLogs`), so the logic and the security checks live in one place.
+
+### Agent skill
+
+`Agent/RockDetectiveSkill.cs` is a code-based skill for Rock's own AI agents. It inherits `Rock.AI.Agent.AgentSkillComponent`, which is public in Rock 19.4 and later, and carries `[AgentSkillGuid]`, `[EntityTypeGuid]`, and a description. Each tool is a public method returning `AgentToolResult` with `[AgentToolGuid]`, a `[Description]`, and `[Description]` on its parameters.
+
+Nothing registers it. Rock finds every `AgentSkillComponent` with an `AgentSkillGuid` at startup and adds or updates the AISkill and AISkillTool rows. An administrator then adds the skill to an agent, and an agent of type MCP serves it at `api/v2/mcp/{slug}` through Rock's `McpController`. Tool names on the wire are `RockDetectiveSkill__ListCases`, `RockDetectiveSkill__GetCase`, and `RockDetectiveSkill__SearchIISLogs`.
+
+Things to know:
+
+- The current person comes from `AgentRequestContext.CurrentPerson`. Rock also has a public MCP route, so every tool refuses a null person.
+- Search IIS Logs requires Administrate on `Rock.Security.GlobalDefault`. An agent can be opened up to people who should never read server logs, so the tool checks for itself.
+- Results go through `Success( payload )`, which Rock serializes with System.Text.Json. Return plain objects or bags, not Newtonsoft `JToken`s.
+- A `McpToolException` becomes `Error( message )`.
+
+### Direct endpoint
+
+`Rest/RockDetectiveMcpController.cs` is a plugin-owned MCP server at `POST api/com_yesuchum/rockdetective/mcp`. It needs no agent and no AI setup in Rock, only a REST key.
 
 It is stateless JSON-RPC 2.0 over HTTP, protocol version `2025-03-26`, with no SSE stream and no session:
 
@@ -164,7 +182,7 @@ It is stateless JSON-RPC 2.0 over HTTP, protocol version `2025-03-26`, with no S
 
 Auth is Rock's own: `[Authenticate, Secured]` on the POST action, so a client sends a REST key in the `Authorization-Token` header and the action is secured like any other under Security > REST Controllers.
 
-Tools live in `Mcp/McpToolService.cs`, one `McpToolDefinition` each (name, description, JSON schema, handler). To add a tool, append to the `_tools` list. A handler throws `McpToolException` for anything the caller should read; that comes back as a normal result with `isError: true`, which is what MCP expects for tool failures. Anything else is logged to the exception log and returned as a generic error.
+Its tools are listed in `Mcp/McpToolService.cs`, one `McpToolDefinition` each (name, description, JSON schema, handler). To add a tool, write the typed method, append a definition to the `_tools` list, and add a matching method to the skill. A handler throws `McpToolException` for anything the caller should read; that comes back as a normal result with `isError: true`, which is what MCP expects for tool failures. Anything else is logged to the exception log and returned as a generic error.
 
 | Tool | Notes |
 |---|---|
@@ -203,7 +221,7 @@ Tools live in `Mcp/McpToolService.cs`, one `McpToolDefinition` each (name, descr
 - the three system communications
 - the two jobs and the Reminder Days job attribute
 
-Version 1.1.0 added three more:
+Version 1.1.0 added three more, numbered for Rock 19.7 so they only run there or later:
 
 - `_002_AddIisLogPathSetting`: the Rock Detective IIS Log Folder global attribute.
 - `_003_AddTerminologySettings`: the Category attribute for per-category wording (it looks up the Case File entity type Id for the qualifier) and the default terminology global attribute.
@@ -221,7 +239,7 @@ Renamed terms reach the partials through provide and inject. `caseFileDetail.obs
 
 ## Build and deploy
 
-The project is built inside a Rock source checkout. The csproj references `..\Rock`, `..\Rock.Common`, `..\Rock.Enums`, `..\Rock.Rest`, `..\Rock.Lava`, and `..\Rock.Lava.Shared`, and the Obsidian build uses `..\Rock.JavaScript.Obsidian` and copies into `..\RockWeb`.
+The project is built inside a Rock source checkout at 19.7 or later. Older source will not compile the agent skill. The csproj references `..\Rock`, `..\Rock.Common`, `..\Rock.Enums`, `..\Rock.Rest`, `..\Rock.Lava`, and `..\Rock.Lava.Shared`, and the Obsidian build uses `..\Rock.JavaScript.Obsidian` and copies into `..\RockWeb`.
 
 ```
 dotnet build com.yesuchum.RockDetective                    debug DLL, auto-copies to RockWeb\Bin
