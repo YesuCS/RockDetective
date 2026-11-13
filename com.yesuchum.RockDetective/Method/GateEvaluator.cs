@@ -70,6 +70,10 @@ namespace com.yesuchum.RockDetective.Method
 
     public class GateRequirement
     {
+        public string Key { get; set; }
+
+        public int? Count { get; set; }
+
         public string Description { get; set; }
 
         public bool IsMet { get; set; }
@@ -124,10 +128,10 @@ namespace com.yesuchum.RockDetective.Method
                     EvaluateTimeline( aggregate, result, options.MinimumTimelineEvents );
                     break;
                 case CasePhase.FactList:
-                    AddCountRequirement( result, aggregate.FactCount, isSimpleMode ? options.SimpleMinimumFacts : options.AdvancedMinimumFacts, "fact" );
+                    AddCountRequirement( result, GateKey.FactsMinimum, aggregate.FactCount, isSimpleMode ? options.SimpleMinimumFacts : options.AdvancedMinimumFacts, "fact" );
                     break;
                 case CasePhase.ProbabilityTree:
-                    AddCountRequirement( result, aggregate.RootHypothesesWithProbabilityCount, isSimpleMode ? options.SimpleMinimumRootHypotheses : options.AdvancedMinimumRootHypotheses, "root hypothesis with a probability estimate", "root hypotheses with probability estimates" );
+                    AddCountRequirement( result, GateKey.HypothesesMinimum, aggregate.RootHypothesesWithProbabilityCount, isSimpleMode ? options.SimpleMinimumRootHypotheses : options.AdvancedMinimumRootHypotheses, "root hypothesis with a probability estimate", "root hypotheses with probability estimates" );
                     break;
                 case CasePhase.Experiments:
                     EvaluateExperiments( aggregate, result, options.MinimumCompletedExperiments );
@@ -160,6 +164,7 @@ namespace com.yesuchum.RockDetective.Method
         {
             result.Requirements.Add( new GateRequirement
             {
+                Key = GateKey.TeamOwner,
                 Description = "An owner is assigned to the case.",
                 IsMet = aggregate.HasOwner
             } );
@@ -170,6 +175,7 @@ namespace com.yesuchum.RockDetective.Method
 
             result.Requirements.Add( new GateRequirement
             {
+                Key = GateKey.TeamChampion,
                 Description = "A Champion is assigned, or explicitly waived with a reason.",
                 IsMet = aggregate.HasChampion || ( championWaived && hasWaiveReason )
             } );
@@ -179,12 +185,14 @@ namespace com.yesuchum.RockDetective.Method
         {
             result.Requirements.Add( new GateRequirement
             {
+                Key = GateKey.ProblemStatement,
                 Description = "A problem statement is written.",
                 IsMet = !string.IsNullOrWhiteSpace( aggregate.ProblemStatement )
             } );
 
             result.Requirements.Add( new GateRequirement
             {
+                Key = GateKey.ProblemCategory,
                 Description = "A problem category is assigned.",
                 IsMet = aggregate.CategoryId.HasValue
             } );
@@ -197,12 +205,14 @@ namespace com.yesuchum.RockDetective.Method
 
                 result.Requirements.Add( new GateRequirement
                 {
+                    Key = GateKey.ProblemAttestUnverified,
                     Description = "Attested: the statement contains no unverified details.",
                     IsMet = attestedUnverified
                 } );
 
                 result.Requirements.Add( new GateRequirement
                 {
+                    Key = GateKey.ProblemAttestGermane,
                     Description = "Attested: the statement contains nothing that is not germane.",
                     IsMet = attestedGermane
                 } );
@@ -213,6 +223,7 @@ namespace com.yesuchum.RockDetective.Method
         {
             result.Requirements.Add( new GateRequirement
             {
+                Key = GateKey.Classified,
                 Description = "The problem is classified as easy or difficult.",
                 IsMet = aggregate.Classification != CaseClassification.Unclassified
             } );
@@ -222,12 +233,15 @@ namespace com.yesuchum.RockDetective.Method
         {
             result.Requirements.Add( new GateRequirement
             {
+                Key = GateKey.TimelineMinimum,
+                Count = minimumEvents,
                 Description = $"At least {minimumEvents} timeline event{( minimumEvents == 1 ? " is" : "s are" )} recorded.",
                 IsMet = aggregate.TimelineEventTypes.Count >= minimumEvents
             } );
 
             result.Requirements.Add( new GateRequirement
             {
+                Key = GateKey.TimelineProblemStart,
                 Description = "The timeline includes when the problem started.",
                 IsMet = aggregate.TimelineEventTypes.Any( t => t == TimelineEventType.ProblemStart )
             } );
@@ -241,6 +255,8 @@ namespace com.yesuchum.RockDetective.Method
 
             result.Requirements.Add( new GateRequirement
             {
+                Key = GateKey.ExperimentsMinimum,
+                Count = minimum,
                 Description = $"At least {minimum} experiment{( minimum == 1 ? " has" : "s have" )} a recorded outcome with changes reverted or justified.",
                 IsMet = completed >= minimum
             } );
@@ -263,6 +279,7 @@ namespace com.yesuchum.RockDetective.Method
 
             result.Requirements.Add( new GateRequirement
             {
+                Key = GateKey.ReevaluateConfirmed,
                 Description = "A hypothesis is confirmed with a supporting experiment, or the case has explicitly looped back for another round.",
                 IsMet = hasConfirmedWithSupport || hasLoopedBack
             } );
@@ -273,6 +290,7 @@ namespace com.yesuchum.RockDetective.Method
 
                 result.Requirements.Add( new GateRequirement
                 {
+                    Key = GateKey.ReevaluateChampionSignOff,
                     Description = "The Champion has signed off on the confirmed explanation.",
                     IsMet = hasSignOff
                 } );
@@ -281,21 +299,23 @@ namespace com.yesuchum.RockDetective.Method
 
         private static void EvaluatePostmortem( CaseAggregate aggregate, GateResult result )
         {
-            result.Requirements.Add( new GateRequirement { Description = "Problem summary is written.", IsMet = aggregate.HasPostmortemSummary } );
-            result.Requirements.Add( new GateRequirement { Description = "Impact is described.", IsMet = aggregate.HasImpactSummary } );
-            result.Requirements.Add( new GateRequirement { Description = "Solution summary is written.", IsMet = aggregate.HasSolutionSummary } );
-            result.Requirements.Add( new GateRequirement { Description = "Contributing factors are listed.", IsMet = aggregate.HasContributingFactors } );
-            result.Requirements.Add( new GateRequirement { Description = "Lessons learned are recorded.", IsMet = aggregate.HasLessonsLearned } );
-            result.Requirements.Add( new GateRequirement { Description = "Prevention measures are recorded.", IsMet = aggregate.HasPreventionMeasures } );
-            result.Requirements.Add( new GateRequirement { Description = "Action items are recorded.", IsMet = aggregate.HasActionItems } );
+            result.Requirements.Add( new GateRequirement { Key = GateKey.PostmortemSummary, Description = "Problem summary is written.", IsMet = aggregate.HasPostmortemSummary } );
+            result.Requirements.Add( new GateRequirement { Key = GateKey.PostmortemImpact, Description = "Impact is described.", IsMet = aggregate.HasImpactSummary } );
+            result.Requirements.Add( new GateRequirement { Key = GateKey.PostmortemSolution, Description = "Solution summary is written.", IsMet = aggregate.HasSolutionSummary } );
+            result.Requirements.Add( new GateRequirement { Key = GateKey.PostmortemContributingFactors, Description = "Contributing factors are listed.", IsMet = aggregate.HasContributingFactors } );
+            result.Requirements.Add( new GateRequirement { Key = GateKey.PostmortemLessonsLearned, Description = "Lessons learned are recorded.", IsMet = aggregate.HasLessonsLearned } );
+            result.Requirements.Add( new GateRequirement { Key = GateKey.PostmortemPrevention, Description = "Prevention measures are recorded.", IsMet = aggregate.HasPreventionMeasures } );
+            result.Requirements.Add( new GateRequirement { Key = GateKey.PostmortemActionItems, Description = "Action items are recorded.", IsMet = aggregate.HasActionItems } );
         }
 
-        private static void AddCountRequirement( GateResult result, int actual, int minimum, string singular, string plural = null )
+        private static void AddCountRequirement( GateResult result, string key, int actual, int minimum, string singular, string plural = null )
         {
             var noun = minimum == 1 ? singular : ( plural ?? singular + "s" );
 
             result.Requirements.Add( new GateRequirement
             {
+                Key = key,
+                Count = minimum,
                 Description = $"At least {minimum} {noun} recorded.",
                 IsMet = actual >= minimum
             } );

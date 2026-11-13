@@ -49,11 +49,11 @@ namespace com.yesuchum.RockDetective.Method
             {
                 Phase = CasePhase.DefineTeam,
                 Name = "Define the Team",
-                Guidance = "Assign roles. The owner runs the investigation. A Champion is someone not emotionally tied to the problem who sanity-checks the final explanation. Recorder and Communicator keep notes and stakeholders current. Small problems can skip everything except the owner.",
+                Guidance = "Assign roles. The {owner} runs the investigation. A {Champion} is someone not emotionally tied to the problem who sanity-checks the final explanation. {Recorder} and {Communicator} keep notes and stakeholders current. Small problems can skip everything except the {owner}.",
                 Prompts = new List<string>
                 {
                     "Who owns this investigation?",
-                    "Who will serve as Champion, or why is one not needed?",
+                    "Who will serve as {Champion}, or why is one not needed?",
                     "Who records findings and who communicates status?"
                 },
                 IsAutoSkippedInSimpleMode = true
@@ -100,7 +100,7 @@ namespace com.yesuchum.RockDetective.Method
             {
                 Phase = CasePhase.FactList,
                 Name = "Fact List",
-                Guidance = "Write down facts: specific, correct, and pertinent only. Append continuously as the investigation develops. Witness statements feed this list but are never fully trusted; track corroboration.",
+                Guidance = "Write down {fact+}: specific, correct, and pertinent only. Append continuously as the investigation develops. {Witness} {statement+} feed this list but are never fully trusted; track corroboration.",
                 Prompts = new List<string>
                 {
                     "What do we know for certain?",
@@ -112,7 +112,7 @@ namespace com.yesuchum.RockDetective.Method
             {
                 Phase = CasePhase.ProbabilityTree,
                 Name = "Probability Tree",
-                Guidance = "Brainstorm candidate causes first; assign probabilities second. Break broad hypotheses into child nodes.",
+                Guidance = "Brainstorm candidate causes first; assign probabilities second. Break broad {hypothesis+} into child nodes.",
                 Prompts = new List<string>
                 {
                     "What could logically cause this?",
@@ -124,10 +124,10 @@ namespace com.yesuchum.RockDetective.Method
             {
                 Phase = CasePhase.Experiments,
                 Name = "Experiments",
-                Guidance = "Test one hypothesis at a time. Change one factor at a time. Log every change so it can be reverted. Record expected versus actual results and what was learned.",
+                Guidance = "Test one {hypothesis} at a time. Change one factor at a time. Log every change so it can be reverted. Record expected versus actual results and what was learned.",
                 Prompts = new List<string>
                 {
-                    "Which hypothesis does this experiment test?",
+                    "Which {hypothesis} does this {experiment} test?",
                     "What is the test plan and expected result?",
                     "What actually happened, and what did we learn?"
                 },
@@ -137,11 +137,11 @@ namespace com.yesuchum.RockDetective.Method
             {
                 Phase = CasePhase.Reevaluate,
                 Name = "Reevaluate",
-                Guidance = "Update probabilities, rule hypotheses out, add facts. Loop back through Facts, Probability Tree, and Experiments until a cause is confirmed beyond a reasonable doubt and passes the Champion's sniff test.",
+                Guidance = "Update probabilities, rule {hypothesis+} out, add {fact+}. Loop back through {Fact+}, the probability tree, and {Experiment+} until a cause is confirmed beyond a reasonable doubt and passes the {Champion}'s sniff test.",
                 Prompts = new List<string>
                 {
-                    "What did the last round of experiments change?",
-                    "Is any hypothesis confirmed beyond a reasonable doubt?",
+                    "What did the last round of {experiment+} change?",
+                    "Is any {hypothesis} confirmed beyond a reasonable doubt?",
                     "Does the confirmed explanation pass the sniff test?"
                 },
                 IsLoopPhase = true

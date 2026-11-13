@@ -82,6 +82,10 @@ namespace com.yesuchum.RockDetective.ViewModels
 
         public List<GateResultBag> GateResults { get; set; } = new List<GateResultBag>();
 
+        public List<PhaseDefinitionBag> PhaseDefinitions { get; set; } = new List<PhaseDefinitionBag>();
+
+        public Dictionary<string, TermBag> Terms { get; set; } = new Dictionary<string, TermBag>();
+
         public List<CaseEntryBag> Entries { get; set; } = new List<CaseEntryBag>();
 
         public List<HypothesisBag> Hypotheses { get; set; } = new List<HypothesisBag>();
@@ -89,6 +93,13 @@ namespace com.yesuchum.RockDetective.ViewModels
         public List<ExperimentBag> Experiments { get; set; } = new List<ExperimentBag>();
 
         public List<ParticipantBag> Participants { get; set; } = new List<ParticipantBag>();
+    }
+
+    public class TermBag
+    {
+        public string Singular { get; set; }
+
+        public string Plural { get; set; }
     }
 
     public class CaseEntryBag

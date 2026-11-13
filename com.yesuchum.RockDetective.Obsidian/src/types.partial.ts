@@ -1,3 +1,5 @@
+import { inject } from "vue";
+
 export const CaseStatus = {
     Open: 0,
     Investigating: 1,
@@ -89,6 +91,53 @@ export type CategoryOptionBag = {
     iconCssClass?: string | null;
 };
 
+export type TermBag = {
+    singular: string;
+    plural: string;
+};
+
+export type TermLookup = {
+    t(key: string): string;
+    tp(key: string): string;
+    tl(key: string): string;
+    tpl(key: string): string;
+};
+
+export const termsInjectionKey = "rockDetectiveTerms";
+
+const defaultTerms: Record<string, TermBag> = {
+    CaseFile: { singular: "Case", plural: "Cases" },
+    Owner: { singular: "Owner", plural: "Owners" },
+    Champion: { singular: "Champion", plural: "Champions" },
+    Recorder: { singular: "Recorder", plural: "Recorders" },
+    Communicator: { singular: "Communicator", plural: "Communicators" },
+    Member: { singular: "Member", plural: "Members" },
+    Witness: { singular: "Witness", plural: "Witnesses" },
+    Fact: { singular: "Fact", plural: "Facts" },
+    TimelineEvent: { singular: "Timeline Event", plural: "Timeline Events" },
+    Evidence: { singular: "Evidence", plural: "Evidence" },
+    Hypothesis: { singular: "Hypothesis", plural: "Hypotheses" },
+    Experiment: { singular: "Experiment", plural: "Experiments" },
+    Statement: { singular: "Statement", plural: "Statements" }
+};
+
+export function createTermLookup(getTerms: () => Record<string, TermBag> | null | undefined): TermLookup {
+    function find(key: string): TermBag {
+        return getTerms()?.[key] ?? defaultTerms[key] ?? { singular: key, plural: key };
+    }
+
+    return {
+        t: (key: string): string => find(key).singular,
+        tp: (key: string): string => find(key).plural,
+        tl: (key: string): string => find(key).singular.toLowerCase(),
+        tpl: (key: string): string => find(key).plural.toLowerCase()
+    };
+}
+
+export function useTerms(): TermLookup {
+    return inject<TermLookup>(termsInjectionKey, createTermLookup(() => null));
+}
+
 export type GateRequirementBag = {
     description: string;
     isMet: boolean;
@@ -143,6 +192,7 @@ export type CaseFileListInitBag = {
     defaultView: string;
     canAddCase: boolean;
     detailPageUrl?: string | null;
+    terminologySettingsUrl?: string | null;
 };
 
 export type NewCaseResultBag = {
@@ -248,6 +298,8 @@ export type CaseFileBag = {
     createdDateTime?: string | null;
     phaseStates: PhaseStateBag[];
     gateResults: GateResultBag[];
+    phaseDefinitions?: PhaseDefinitionBag[] | null;
+    terms?: Record<string, TermBag> | null;
     entries: CaseEntryBag[];
     hypotheses: HypothesisBag[];
     experiments: ExperimentBag[];
@@ -280,6 +332,40 @@ export type WitnessStatementInitBag = {
     isAlreadySubmitted: boolean;
     isDeclined: boolean;
     errorMessage?: string | null;
+};
+
+export type TerminologyTermBag = {
+    key: string;
+    label: string;
+    defaultSingular: string;
+};
+
+export type TerminologyPhaseBag = {
+    key: string;
+    phase: number;
+    defaultName: string;
+    defaultGuidance: string;
+    defaultPrompts: string[];
+};
+
+export type TerminologyGateBag = {
+    key: string;
+    phaseName: string;
+    defaultDescription: string;
+};
+
+export type TerminologySettingsInitBag = {
+    categories: CategoryOptionBag[];
+    terms: TerminologyTermBag[];
+    phases: TerminologyPhaseBag[];
+    gates: TerminologyGateBag[];
+    canEdit: boolean;
+};
+
+export type TerminologyValuesBag = {
+    terms: Record<string, string>;
+    phases: Record<string, { name?: string | null; guidance?: string | null; prompts?: string[] | null }>;
+    gateDescriptions: Record<string, string>;
 };
 
 export type PdfResultBag = {

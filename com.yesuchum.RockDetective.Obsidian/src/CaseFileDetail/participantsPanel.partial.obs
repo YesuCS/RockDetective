@@ -1,14 +1,14 @@
 <template>
-    <Panel title="Team and Witnesses" :hasCollapse="true">
+    <Panel :title="'Team and ' + tp('Witness')" :hasCollapse="true">
         <template #headerActions>
             <RockButton v-if="canEdit" :btnType="BtnType.Default" :btnSize="BtnSize.ExtraSmall" @click.stop="onAdd">
                 <i class="ti ti-plus"></i>
             </RockButton>
         </template>
 
-        <p class="mb-1"><strong>Owner:</strong> {{ ownerName }}</p>
+        <p class="mb-1"><strong>{{ t("Owner") }}:</strong> {{ ownerName }}</p>
 
-        <p v-if="!participants.length" class="text-muted">All roles except owner are optional; small problems skip them. Add a Champion for a sanity check on the final explanation.</p>
+        <p v-if="!participants.length" class="text-muted">All roles except {{ tl("Owner") }} are optional; small problems skip them. Add a {{ t("Champion") }} for a sanity check on the final explanation.</p>
 
         <div v-else class="table-responsive">
         <table class="table">
@@ -20,10 +20,10 @@
                             <span v-if="participant.isExternal" class="label label-default ml-1">External</span>
                             <div v-if="participant.externalContact" class="text-muted" style="font-size: 12.5px;">{{ participant.externalContact }}</div>
                         </td>
-                        <td style="width: 130px;">{{ roleNames[participant.role] }}</td>
+                        <td style="width: 130px;">{{ t(roleNames[participant.role]) }}</td>
                         <td style="width: 140px;">
                             <span v-if="participant.statements.length" class="text-muted" style="font-size: 12.5px;">
-                                {{ participant.statements.length }} statement{{ participant.statements.length === 1 ? "" : "s" }}
+                                {{ participant.statements.length }} {{ participant.statements.length === 1 ? tl("Statement") : tpl("Statement") }}
                             </span>
                         </td>
                         <td style="text-align: right; white-space: nowrap;">
@@ -91,10 +91,10 @@
         <Modal v-model="isRequestOpen" title="Request Statement" saveText="Create Request" @save="onSaveRequest">
             <RockForm>
                 <NotificationBox v-if="requestTarget?.isExternal" alertType="info">
-                    External witnesses cannot receive Rock communications. The request is saved on the case; gather and record their statement manually.
+                    External {{ tpl("Witness") }} cannot receive Rock communications. The request is saved on the {{ tl("CaseFile") }}; gather and record their {{ tl("Statement") }} manually.
                 </NotificationBox>
                 <TextBox v-model="requestPrompt" label="What do you want to ask?" textMode="multiline" :rows="3" rules="required"
-                         help="Be specific: what did they see, when, and what changed around that time. Each request becomes its own statement; a witness can be asked more than once." />
+                         help="Be specific: what did they see, when, and what changed around that time. Each request is recorded separately, and the same person can be asked more than once." />
             </RockForm>
         </Modal>
 
@@ -104,12 +104,12 @@
                 <TextBox v-model="manualStatement" label="Statement" textMode="multiline" :rows="5" rules="required" />
                 <FileUploader v-model="manualFile" label="Attachment (optional)" :binaryFileTypeGuid="binaryFileTypeGuid" />
                 <TextBox v-model="manualUrl" label="Link (optional)" />
-                <CheckBox v-model="manualAddToFacts" label="Add this statement to the fact list" />
-                <CheckBox v-if="manualAddToFacts" v-model="manualIsCorroborated" label="Mark the fact as corroborated" />
+                <CheckBox v-model="manualAddToFacts" :label="'Add this to the ' + tpl('Fact')" />
+                <CheckBox v-if="manualAddToFacts" v-model="manualIsCorroborated" label="Mark as corroborated" />
             </RockForm>
         </Modal>
 
-        <Modal v-model="isViewOpen" title="Witness Statement" :cancelText="'Close'" :saveText="canEdit ? 'Add to Facts' : ''" @save="onAddStatementFact">
+        <Modal v-model="isViewOpen" :title="t('Witness') + ' ' + t('Statement')" :cancelText="'Close'" :saveText="canEdit ? ('Add to ' + tp('Fact')) : ''" @save="onAddStatementFact">
             <p class="text-muted mb-1">{{ viewParticipant?.displayName }}; submitted {{ formatDate(viewTarget?.submittedDateTime) }}</p>
             <p v-if="viewTarget?.requestPrompt" class="text-muted">Asked: {{ viewTarget?.requestPrompt }}</p>
             <blockquote>{{ viewTarget?.statement }}</blockquote>
@@ -122,7 +122,7 @@
                 <a :href="viewTarget.url" target="_blank" rel="noopener noreferrer"><i class="ti ti-link"></i> {{ viewTarget.url }}</a>
             </p>
             <template v-if="canEdit">
-                <TextBox v-model="factText" label="Fact text" textMode="multiline" :rows="3" help="Edit down to the specific, pertinent fact before adding. Witness statements are never fully trusted." />
+                <TextBox v-model="factText" :label="t('Fact') + ' text'" textMode="multiline" :rows="3" help="Edit down to what is specific and pertinent before adding. What people report is never fully trusted." />
                 <CheckBox v-model="factIsCorroborated" label="Corroborated by evidence" />
             </template>
         </Modal>
@@ -130,7 +130,7 @@
 </template>
 
 <script setup lang="ts">
-    import { ref, PropType, reactive } from "vue";
+    import { ref, PropType, reactive, computed } from "vue";
     import Panel from "@Obsidian/Controls/panel.obs";
     import Modal from "@Obsidian/Controls/modal.obs";
     import RockForm from "@Obsidian/Controls/rockForm.obs";
@@ -147,7 +147,9 @@
     import { confirmDelete } from "@Obsidian/Utility/dialogs";
     import { RockDateTime } from "@Obsidian/Utility/rockDateTime";
     import type { ListItemBag } from "@Obsidian/ViewModels/Utility/listItemBag";
-    import { roleNames, requestStatusNames, type ParticipantBag, type StatementBag } from "../types.partial";
+    import { roleNames, requestStatusNames, useTerms, type ParticipantBag, type StatementBag } from "../types.partial";
+
+    const { t, tp, tl, tpl } = useTerms();
 
     const props = defineProps({
         participants: {
@@ -179,7 +181,7 @@
         if (!statement.idKey) {
             return;
         }
-        const confirmed = await confirmDelete("Statement");
+        const confirmed = await confirmDelete(t("Statement"));
         if (confirmed) {
             emit("deleteStatement", statement.idKey);
         }
@@ -232,9 +234,9 @@
         { value: "external", text: "External person" }
     ];
 
-    const roleItems: ListItemBag[] = roleNames
-        .map((name, index) => ({ value: String(index), text: name }))
-        .filter(item => item.value !== "0");
+    const roleItems = computed<ListItemBag[]>(() => roleNames
+        .map((name, index) => ({ value: String(index), text: t(name) }))
+        .filter(item => item.value !== "0"));
 
     function blank(): ParticipantBag {
         return { idKey: null, personAliasGuid: null, displayName: null, externalContact: null, isExternal: false, role: 4, statements: [] };

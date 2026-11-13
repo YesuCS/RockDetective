@@ -3,7 +3,7 @@
         {{ notification }}
     </NotificationBox>
 
-    <div class="mb-3">
+    <div class="mb-3 d-flex align-items-center justify-content-between flex-wrap" style="gap: 8px;">
         <div class="btn-group d-flex" style="width: fit-content;">
             <button v-for="view in views"
                     :key="view.key"
@@ -16,6 +16,10 @@
                 <span v-if="view.badge" class="badge ml-1">{{ view.badge }}</span>
             </button>
         </div>
+        <a v-if="config.terminologySettingsUrl" class="btn btn-default btn-sm d-inline-flex align-items-center" style="height: 34px;"
+           :href="config.terminologySettingsUrl" title="Rename phases, terms and gate wording">
+            <i class="ti ti-language mr-1"></i>Terminology Settings
+        </a>
     </div>
 
     <Grid :data="gridDataSource"

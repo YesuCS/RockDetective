@@ -180,6 +180,7 @@ namespace com.yesuchum.RockDetective.Blocks
                 var entities = LoadCaseEntities( detectiveContext, caseFile.Id );
 
                 box.CaseFile = CaseMapper.ToCaseFileBag( caseFile, entities.Entries, entities.Hypotheses, entities.Experiments, entities.Participants, GetGateOptions(), entities.Statements );
+                box.PhaseDefinitions = box.CaseFile.PhaseDefinitions;
                 box.CanAdministrate = caseFile.IsAuthorized( Rock.Security.Authorization.ADMINISTRATE, currentPerson );
                 box.IsOwner = IsOwner( caseFile, currentPerson );
                 box.IsChampion = IsInRole( entities.Participants, currentPerson, ParticipantRole.Champion );

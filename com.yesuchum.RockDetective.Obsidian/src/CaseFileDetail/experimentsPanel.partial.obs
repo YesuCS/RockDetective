@@ -1,5 +1,5 @@
 <template>
-    <Panel title="Experiments" :hasCollapse="true">
+    <Panel :title="title" :hasCollapse="true">
         <template #headerActions>
             <RockButton v-if="canEdit" :btnType="BtnType.Default" :btnSize="BtnSize.ExtraSmall" @click.stop="onAdd">
                 <i class="ti ti-plus"></i>
@@ -27,10 +27,10 @@
             </dl>
         </div>
 
-        <Modal v-model="isModalOpen" :title="editing.idKey ? 'Edit Experiment' : 'Add Experiment'" saveText="Save" @save="onSave">
+        <Modal v-model="isModalOpen" :title="(editing.idKey ? 'Edit ' : 'Add ') + t('Experiment')" saveText="Save" @save="onSave">
             <RockForm>
-                <DropDownList v-model="hypothesisValue" label="Hypothesis Under Test" :items="hypothesisItems" help="Link to a hypothesis from the probability tree, or describe one below." />
-                <TextBox v-if="!hypothesisValue" v-model="editing.hypothesisText" label="Hypothesis (free text)" />
+                <DropDownList v-model="hypothesisValue" :label="t('Hypothesis') + ' Under Test'" :items="hypothesisItems" :help="'Link to a ' + tl('Hypothesis') + ' already recorded, or describe one below.'" />
+                <TextBox v-if="!hypothesisValue" v-model="editing.hypothesisText" :label="t('Hypothesis') + ' (free text)'" />
                 <TextBox v-model="editing.testPlan" label="Test Plan" textMode="multiline" :rows="2" help="One factor changed at a time." />
                 <TextBox v-model="editing.expectedResult" label="Expected Result" textMode="multiline" :rows="2" />
                 <TextBox v-model="editing.actualResult" label="Actual Result" textMode="multiline" :rows="2" />
@@ -38,7 +38,7 @@
                 <TextBox v-model="editing.changesMade" label="Changes Made" textMode="multiline" :rows="2" help="Log every change so it can be reverted." />
                 <CheckBox v-model="editing.changesReverted" label="All changes have been reverted" />
                 <TextBox v-if="!editing.changesReverted && editing.changesMade" v-model="editing.revertJustification" label="Why changes remain in place" textMode="multiline" :rows="2" />
-                <TextBox v-model="editing.learnings" label="Learnings" textMode="multiline" :rows="2" help="Recorded learnings append to the fact list automatically once the outcome is recorded." />
+                <TextBox v-model="editing.learnings" label="Learnings" textMode="multiline" :rows="2" :help="'Recorded learnings are added to the ' + tpl('Fact') + ' automatically once the outcome is recorded.'" />
             </RockForm>
         </Modal>
     </Panel>
@@ -57,7 +57,9 @@
     import { BtnSize } from "@Obsidian/Enums/Controls/btnSize";
     import { confirmDelete } from "@Obsidian/Utility/dialogs";
     import type { ListItemBag } from "@Obsidian/ViewModels/Utility/listItemBag";
-    import { outcomeNames, type ExperimentBag, type HypothesisBag } from "../types.partial";
+    import { outcomeNames, useTerms, type ExperimentBag, type HypothesisBag } from "../types.partial";
+
+    const { t, tl, tpl } = useTerms();
 
     const props = defineProps({
         experiments: {
@@ -67,6 +69,10 @@
         hypotheses: {
             type: Array as PropType<HypothesisBag[]>,
             required: true
+        },
+        title: {
+            type: String,
+            default: "Experiments"
         },
         canEdit: {
             type: Boolean,
@@ -84,9 +90,9 @@
 
     function hypothesisNameOf(experiment: ExperimentBag): string {
         if (experiment.hypothesisIdKey) {
-            return props.hypotheses.find(h => h.idKey === experiment.hypothesisIdKey)?.name ?? "Linked hypothesis";
+            return props.hypotheses.find(h => h.idKey === experiment.hypothesisIdKey)?.name ?? ("Linked " + tl("Hypothesis"));
         }
-        return experiment.hypothesisText || "Unlinked experiment";
+        return experiment.hypothesisText || ("Unlinked " + tl("Experiment"));
     }
 
     function outcomeLabelClass(outcome: number): string {
@@ -157,7 +163,7 @@
         if (!experiment.idKey) {
             return;
         }
-        const confirmed = await confirmDelete("Experiment");
+        const confirmed = await confirmDelete(t("Experiment"));
         if (confirmed) {
             emit("delete", experiment.idKey);
         }

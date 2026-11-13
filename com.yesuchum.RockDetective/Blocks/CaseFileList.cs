@@ -77,6 +77,15 @@ namespace com.yesuchum.RockDetective.Blocks
                 box.Cases = LoadCases( currentPerson, includeClosed: false );
             }
 
+            var settingsPage = PageCache.Get( SystemGuid.Page.TERMINOLOGY_SETTINGS.AsGuid() );
+
+            var settingsBlock = settingsPage?.Blocks.FirstOrDefault( b => b.BlockType?.Guid == SystemGuid.BlockType.TERMINOLOGY_SETTINGS.AsGuid() );
+
+            if ( settingsBlock != null && settingsBlock.IsAuthorized( Rock.Security.Authorization.ADMINISTRATE, currentPerson ) )
+            {
+                box.TerminologySettingsUrl = RequestContext.ResolveRockUrl( $"~/page/{settingsPage.Id}" );
+            }
+
             return box;
         }
 
@@ -154,6 +163,7 @@ namespace com.yesuchum.RockDetective.Blocks
                 var aliasInfo = CaseMapper.GetAliasInfo( ownerAliasIds );
 
                 var items = new List<CaseFileListItemBag>();
+                var profiles = new Dictionary<int, MethodProfile>();
 
                 foreach ( var caseFile in cases )
                 {
@@ -167,6 +177,14 @@ namespace com.yesuchum.RockDetective.Blocks
                         continue;
                     }
 
+                    var profileKey = caseFile.CategoryId ?? 0;
+
+                    if ( !profiles.TryGetValue( profileKey, out var profile ) )
+                    {
+                        profile = MethodProfile.ForCategory( caseFile.CategoryId );
+                        profiles[profileKey] = profile;
+                    }
+
                     items.Add( new CaseFileListItemBag
                     {
                         IdKey = caseFile.IdKey,
@@ -174,7 +192,7 @@ namespace com.yesuchum.RockDetective.Blocks
                         Title = caseFile.Title,
                         CategoryName = caseFile.Category?.Name,
                         Status = caseFile.Status.ToString().SplitCase(),
-                        Phase = MethodDefinition.GetPhase( caseFile.CurrentPhase ).Name,
+                        Phase = profile.GetPhase( caseFile.CurrentPhase ).Name,
                         Mode = caseFile.Mode == CaseMode.Advanced ? "Advanced" : "Simple",
                         AgeDays = caseFile.CreatedDateTime.HasValue
                             ? ( int ) ( RockDateTime.Now - caseFile.CreatedDateTime.Value ).TotalDays

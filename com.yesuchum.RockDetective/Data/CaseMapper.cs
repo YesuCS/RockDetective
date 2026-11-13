@@ -68,28 +68,33 @@ namespace com.yesuchum.RockDetective.Data
             };
         }
 
-        public static List<GateResultBag> EvaluateAllGates( CaseAggregate aggregate, GateRequirementOptions options = null )
+        public static List<GateResultBag> EvaluateAllGates( CaseAggregate aggregate, GateRequirementOptions options = null, MethodProfile profile = null )
         {
             return MethodDefinition.Phases
-                .Select( d => ToBag( GateEvaluator.Evaluate( aggregate, d.Phase, options ) ) )
+                .Select( d => ToBag( GateEvaluator.Evaluate( aggregate, d.Phase, options ), profile ) )
                 .ToList();
         }
 
-        public static GateResultBag ToBag( GateResult result )
+        public static GateResultBag ToBag( GateResult result, MethodProfile profile = null )
         {
             return new GateResultBag
             {
                 Phase = ( int ) result.Phase,
                 IsMet = result.IsMet,
                 Requirements = result.Requirements
-                    .Select( r => new GateRequirementBag { Description = r.Description, IsMet = r.IsMet } )
+                    .Select( r => new GateRequirementBag { Description = profile != null ? profile.DescribeGate( r ) : r.Description, IsMet = r.IsMet } )
                     .ToList()
             };
         }
 
-        public static List<PhaseDefinitionBag> GetPhaseDefinitionBags()
+        public static Dictionary<string, TermBag> GetTermBags( MethodProfile profile )
         {
-            return MethodDefinition.Phases.Select( d => new PhaseDefinitionBag
+            return profile.Terms.ToDictionary( kv => kv.Key, kv => new TermBag { Singular = kv.Value.Singular, Plural = kv.Value.Plural } );
+        }
+
+        public static List<PhaseDefinitionBag> GetPhaseDefinitionBags( MethodProfile profile = null )
+        {
+            return ( profile ?? MethodProfile.Build( null ) ).Phases.Select( d => new PhaseDefinitionBag
             {
                 Phase = ( int ) d.Phase,
                 Name = d.Name,
@@ -293,6 +298,7 @@ namespace com.yesuchum.RockDetective.Data
                     : p.ExternalName );
 
             var aggregate = BuildAggregate( caseFile, entries, hypotheses, experiments, participants );
+            var profile = MethodProfile.ForCategory( caseFile.CategoryId );
 
             return new CaseFileBag
             {
@@ -319,7 +325,9 @@ namespace com.yesuchum.RockDetective.Data
                 ClosedDateTime = caseFile.ClosedDateTime,
                 CreatedDateTime = caseFile.CreatedDateTime,
                 PhaseStates = GetPhaseStateBags( caseFile ),
-                GateResults = EvaluateAllGates( aggregate, gateOptions ),
+                GateResults = EvaluateAllGates( aggregate, gateOptions, profile ),
+                PhaseDefinitions = GetPhaseDefinitionBags( profile ),
+                Terms = GetTermBags( profile ),
                 Entries = entries.OrderBy( e => e.Order ).ThenBy( e => e.Id ).Select( e => ToBag( e, participantNames ) ).ToList(),
                 Hypotheses = hypotheses.OrderBy( h => h.Id ).Select( ToBag ).ToList(),
                 Experiments = experiments.OrderBy( e => e.Id ).Select( ToBag ).ToList(),

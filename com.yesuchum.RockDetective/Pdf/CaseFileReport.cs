@@ -51,6 +51,26 @@ namespace com.yesuchum.RockDetective.Pdf
             return sb.ToString();
         }
 
+        private static string T( CaseFileBag bag, string key, bool isPlural = false )
+        {
+            if ( bag.Terms != null && bag.Terms.TryGetValue( key, out var term ) )
+            {
+                return H( isPlural ? term.Plural : term.Singular );
+            }
+
+            return H( key );
+        }
+
+        private static string PhaseName( CaseFileBag bag, int phase, string fallback )
+        {
+            return H( bag.PhaseDefinitions?.FirstOrDefault( d => d.Phase == phase )?.Name ?? fallback );
+        }
+
+        private static string RoleName( CaseFileBag bag, int role )
+        {
+            return T( bag, Name( RoleNames, role ) );
+        }
+
         private static string H( string value )
         {
             return HttpUtility.HtmlEncode( value ?? string.Empty );
@@ -64,7 +84,7 @@ namespace com.yesuchum.RockDetective.Pdf
         private static void AppendCover( StringBuilder sb, CaseFileBag bag )
         {
             sb.Append( "<div class=\"cover\">" );
-            sb.Append( $"<div class=\"case-number\">Case #{H( bag.CaseNumber )}</div>" );
+            sb.Append( $"<div class=\"case-number\">{T( bag, "CaseFile" )} #{H( bag.CaseNumber )}</div>" );
             sb.Append( $"<h1>{H( bag.Title )}</h1>" );
             sb.Append( $"<p class=\"muted\">Category: {H( bag.CategoryName ?? "None" )} &middot; Status: {Name( StatusNames, bag.Status )} &middot; Mode: {( bag.Mode == 1 ? "Advanced" : "Simple" )}</p>" );
             sb.Append( $"<p class=\"muted\">Opened: {bag.CreatedDateTime:MMMM d, yyyy}" );
@@ -78,11 +98,11 @@ namespace com.yesuchum.RockDetective.Pdf
 
             var team = bag.Participants.Where( p => p.Role != 5 ).ToList();
 
-            sb.Append( $"<p><strong>Owner:</strong> {H( bag.OwnerName )}" );
+            sb.Append( $"<p><strong>{T( bag, "Owner" )}:</strong> {H( bag.OwnerName )}" );
 
             foreach ( var member in team )
             {
-                sb.Append( $" &middot; <strong>{Name( RoleNames, member.Role )}:</strong> {H( member.DisplayName )}" );
+                sb.Append( $" &middot; <strong>{RoleName( bag, member.Role )}:</strong> {H( member.DisplayName )}" );
             }
 
             sb.Append( "</p></div>" );
@@ -107,7 +127,7 @@ namespace com.yesuchum.RockDetective.Pdf
                 return;
             }
 
-            sb.Append( "<h2>Timeline</h2><table><tr><th>When</th><th>Type</th><th>Event</th></tr>" );
+            sb.Append( $"<h2>{PhaseName( bag, 4, "Timeline" )}</h2><table><tr><th>When</th><th>Type</th><th>Event</th></tr>" );
 
             foreach ( var entry in events )
             {
@@ -125,11 +145,11 @@ namespace com.yesuchum.RockDetective.Pdf
 
             if ( facts.Any() )
             {
-                sb.Append( "<h2>Fact List</h2><table><tr><th>Fact</th><th>Source</th><th>Corroborated</th></tr>" );
+                sb.Append( $"<h2>{PhaseName( bag, 5, "Fact List" )}</h2><table><tr><th>{T( bag, "Fact" )}</th><th>Source</th><th>Corroborated</th></tr>" );
 
                 foreach ( var fact in facts )
                 {
-                    var source = Name( EntrySourceNames, fact.Source );
+                    var source = fact.Source == 1 ? HttpUtility.HtmlDecode( T( bag, "Witness" ) ) : ( fact.Source == 2 ? HttpUtility.HtmlDecode( T( bag, "Experiment" ) ) : Name( EntrySourceNames, fact.Source ) );
 
                     if ( fact.SourceParticipantName != null )
                     {
@@ -144,7 +164,7 @@ namespace com.yesuchum.RockDetective.Pdf
 
             if ( evidence.Any() )
             {
-                sb.Append( "<h2>Evidence</h2><table><tr><th>Description</th><th>Attachment</th><th>Link</th></tr>" );
+                sb.Append( $"<h2>{T( bag, "Evidence" )}</h2><table><tr><th>Description</th><th>Attachment</th><th>Link</th></tr>" );
 
                 foreach ( var item in evidence )
                 {
@@ -162,7 +182,7 @@ namespace com.yesuchum.RockDetective.Pdf
                 return;
             }
 
-            sb.Append( "<h2>Probability Tree</h2>" );
+            sb.Append( $"<h2>{PhaseName( bag, 6, "Probability Tree" )}</h2>" );
 
             var roots = bag.Hypotheses.Where( h => h.ParentHypothesisIdKey == null ).ToList();
 
@@ -204,7 +224,7 @@ namespace com.yesuchum.RockDetective.Pdf
                 return;
             }
 
-            sb.Append( "<h2>Experiment Log</h2>" );
+            sb.Append( $"<h2>{PhaseName( bag, 7, "Experiments" )}</h2>" );
 
             foreach ( var experiment in bag.Experiments )
             {
@@ -213,7 +233,7 @@ namespace com.yesuchum.RockDetective.Pdf
                     : experiment.HypothesisText;
 
                 sb.Append( "<div class=\"section-block\">" );
-                sb.Append( $"<h3>{H( hypothesisName ?? "Unlinked experiment" )} <span class=\"badge\">{Name( OutcomeNames, experiment.Outcome )}</span></h3>" );
+                sb.Append( $"<h3>{H( hypothesisName ?? "Unlinked" )} <span class=\"badge\">{Name( OutcomeNames, experiment.Outcome )}</span></h3>" );
                 sb.Append( "<table>" );
                 AppendRow( sb, "Test Plan", experiment.TestPlan );
                 AppendRow( sb, "Expected Result", experiment.ExpectedResult );
@@ -246,7 +266,7 @@ namespace com.yesuchum.RockDetective.Pdf
                 return;
             }
 
-            sb.Append( "<h2>Witness Statements</h2>" );
+            sb.Append( $"<h2>{T( bag, "Witness" )} {T( bag, "Statement", true )}</h2>" );
 
             foreach ( var witness in witnesses )
             {
@@ -294,7 +314,7 @@ namespace com.yesuchum.RockDetective.Pdf
                 return;
             }
 
-            sb.Append( "<h2>Postmortem</h2><table>" );
+            sb.Append( $"<h2>{PhaseName( bag, 9, "Postmortem" )}</h2><table>" );
             AppendRow( sb, "Impact", bag.ImpactSummary );
             AppendRow( sb, "Solution", bag.SolutionSummary );
             AppendRow( sb, "Contributing Factors", bag.ContributingFactors );

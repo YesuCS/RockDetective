@@ -26,16 +26,16 @@
                     <i class="ti ti-file-type-pdf mr-1"></i>{{ isExportingPdf ? "Generating..." : "Export PDF" }}
                 </RockButton>
                 <RockButton v-if="canEdit && !isLocked && caseFile.currentPhase === 9" :btnType="BtnType.Primary" :btnSize="BtnSize.Small" @click="isCloseModalOpen = true">
-                    <i class="ti ti-archive mr-1"></i>Close Case
+                    <i class="ti ti-archive mr-1"></i>Close {{ t("CaseFile") }}
                 </RockButton>
                 <RockButton v-if="canEdit && !isLocked" :btnType="BtnType.Default" :btnSize="BtnSize.Small" @click="onAbandon">
-                    <i class="ti ti-player-pause mr-1"></i>Abandon Case
+                    <i class="ti ti-player-pause mr-1"></i>Abandon {{ t("CaseFile") }}
                 </RockButton>
                 <RockButton v-if="canEdit && isAbandoned" :btnType="BtnType.Primary" :btnSize="BtnSize.Small" @click="onResume">
-                    <i class="ti ti-player-play mr-1"></i>Resume Case
+                    <i class="ti ti-player-play mr-1"></i>Resume {{ t("CaseFile") }}
                 </RockButton>
                 <RockButton v-if="canEdit && isClosed" :btnType="BtnType.Default" :btnSize="BtnSize.Small" @click="onReopen">
-                    <i class="ti ti-folder-open mr-1"></i>Reopen Case
+                    <i class="ti ti-folder-open mr-1"></i>Reopen {{ t("CaseFile") }}
                 </RockButton>
                 <RockButton v-if="canEdit && isClosed && caseFile.followUpDate && !caseFile.followUpConfirmedDateTime" :btnType="BtnType.Success" :btnSize="BtnSize.Small" @click="onConfirmFollowUp">
                     <i class="ti ti-checks mr-1"></i>Fix Held
@@ -43,14 +43,14 @@
             </div>
 
             <NotificationBox v-if="isClosed" alertType="info">
-                This case is closed{{ caseFile.closedDateTime ? " as of " + formatDate(caseFile.closedDateTime) : "" }}. Reopen it to make changes.
+                This {{ tl("CaseFile") }} is closed{{ caseFile.closedDateTime ? " as of " + formatDate(caseFile.closedDateTime) : "" }}. Reopen it to make changes.
             </NotificationBox>
 
             <NotificationBox v-if="isAbandoned" alertType="warning">
-                This case is abandoned. Everything is preserved; resume it to pick the investigation back up where it left off.
+                This {{ tl("CaseFile") }} is abandoned. Everything is preserved; resume it to pick the investigation back up where it left off.
             </NotificationBox>
 
-            <PhaseStepper :definitions="config.phaseDefinitions"
+            <PhaseStepper :definitions="phaseDefinitions"
                           :phaseStates="caseFile.phaseStates"
                           :currentPhase="caseFile.currentPhase"
                           :isSimpleMode="caseFile.mode === 0"
@@ -145,36 +145,36 @@
                         Complete Phase<i class="ti ti-chevron-right ml-1"></i>
                     </RockButton>
                     <RockButton v-if="activePhase === 9" :btnType="BtnType.Primary" :btnSize="BtnSize.Small" @click="isCloseModalOpen = true">
-                        <i class="ti ti-archive mr-1"></i>Run Postmortem and Close
+                        <i class="ti ti-archive mr-1"></i>Run {{ phaseName(9) }} and Close
                     </RockButton>
                     <RockButton v-if="activePhase === 8" :btnType="BtnType.Default" :btnSize="BtnSize.Small" @click="onLoopBack">
-                        <i class="ti ti-refresh mr-1"></i>Loop Back to Facts
+                        <i class="ti ti-refresh mr-1"></i>Loop Back to {{ tp("Fact") }}
                     </RockButton>
                     <RockButton v-if="activePhase === 8 && config.isChampion && !hasChampionSignOff" :btnType="BtnType.Success" :btnSize="BtnSize.Small" @click="onChampionSignOff">
-                        <i class="ti ti-rosette-discount-check mr-1"></i>Champion Sign-Off
+                        <i class="ti ti-rosette-discount-check mr-1"></i>{{ t("Champion") }} Sign-Off
                     </RockButton>
                     <span v-if="activePhase === 8 && hasChampionSignOff" class="label label-success align-self-center">
-                        Champion signed off
+                        {{ t("Champion") }} signed off
                     </span>
                 </div>
             </Panel>
 
             <div class="row">
                 <div class="col-md-6">
-                    <EntriesPanel :entries="caseFile.entries" :entryType="0" title="Fact List"
-                                  emptyText="Facts must be specific, correct, and pertinent only."
+                    <EntriesPanel :entries="caseFile.entries" :entryType="0" :title="phaseName(5)" :itemName="t('Fact')"
+                                  :emptyText="tp('Fact') + ' must be specific, correct, and pertinent only.'"
                                   :canEdit="canEdit && !isLocked" @save="onSaveEntry" @delete="onDeleteEntry" />
-                    <EntriesPanel :entries="caseFile.entries" :entryType="1" title="Timeline"
+                    <EntriesPanel :entries="caseFile.entries" :entryType="1" :title="phaseName(4)" :itemName="t('TimelineEvent')"
                                   emptyText="When did it start? When did it last work? What changed?"
                                   :canEdit="canEdit && !isLocked" @save="onSaveEntry" @delete="onDeleteEntry" />
-                    <EntriesPanel :entries="caseFile.entries" :entryType="2" title="Evidence"
+                    <EntriesPanel :entries="caseFile.entries" :entryType="2" :title="t('Evidence')" :itemName="t('Evidence')"
                                   emptyText="Protect the crime scene: capture logs, configs, and screenshots before anything changes."
                                   :canEdit="canEdit && !isLocked" @save="onSaveEntry" @delete="onDeleteEntry" />
                 </div>
                 <div class="col-md-6">
-                    <HypothesesPanel :hypotheses="caseFile.hypotheses" :canEdit="canEdit && !isLocked"
+                    <HypothesesPanel :hypotheses="caseFile.hypotheses" :title="phaseName(6)" :canEdit="canEdit && !isLocked"
                                      @save="onSaveHypothesis" @delete="onDeleteHypothesis" />
-                    <ExperimentsPanel :experiments="caseFile.experiments" :hypotheses="caseFile.hypotheses" :canEdit="canEdit && !isLocked"
+                    <ExperimentsPanel :experiments="caseFile.experiments" :hypotheses="caseFile.hypotheses" :title="phaseName(7)" :canEdit="canEdit && !isLocked"
                                       @save="onSaveExperiment" @delete="onDeleteExperiment" />
                     <ParticipantsPanel :participants="caseFile.participants" :ownerName="caseFile.ownerName" :canEdit="canEdit && !isLocked"
                                        @save="onSaveParticipant" @delete="onDeleteParticipant"
@@ -189,7 +189,7 @@
             <AuditDetail :entityTypeGuid="caseFileEntityTypeGuid" :entityKey="caseFile.idKey" />
         </Modal>
 
-        <Modal v-model="isCloseModalOpen" title="Postmortem and Close" saveText="Close Case" :isSaveButtonDisabled="isClosing" @save="onCloseCase">
+        <Modal v-model="isCloseModalOpen" :title="phaseName(9) + ' and Close'" :saveText="'Close ' + t('CaseFile')" :isSaveButtonDisabled="isClosing" @save="onCloseCase">
             <RockForm>
                 <TextBox v-model="closeForm.impactSummary" label="Impact" textMode="multiline" :rows="2" rules="required" />
                 <TextBox v-model="closeForm.solutionSummary" label="Solution Summary" textMode="multiline" :rows="2" rules="required" />
@@ -205,7 +205,7 @@
 </template>
 
 <script setup lang="ts">
-    import { ref, computed, reactive, watch } from "vue";
+    import { ref, computed, reactive, watch, provide } from "vue";
     import NotificationBox from "@Obsidian/Controls/notificationBox.obs";
     import Panel from "@Obsidian/Controls/panel.obs";
     import Modal from "@Obsidian/Controls/modal.obs";
@@ -232,6 +232,8 @@
     import {
         statusNames,
         downloadPdf,
+        createTermLookup,
+        termsInjectionKey,
         type CaseBoardInitBag,
         type CaseEntryBag,
         type CaseFileBag,
@@ -246,6 +248,16 @@
 
     const caseFile = ref<CaseFileBag | null>(config.caseFile ?? null);
     const canEdit = config.canEdit;
+
+    const terms = createTermLookup(() => caseFile.value?.terms);
+    const { t, tp, tl } = terms;
+    provide(termsInjectionKey, terms);
+
+    const phaseDefinitions = computed(() => caseFile.value?.phaseDefinitions?.length ? caseFile.value.phaseDefinitions : config.phaseDefinitions);
+
+    function phaseName(phase: number): string {
+        return phaseDefinitions.value.find(d => d.phase === phase)?.name ?? "";
+    }
 
     const notification = ref("");
     const notificationType = ref<string>(AlertType.Success);
@@ -273,7 +285,7 @@
     });
 
     async function onAbandon(): Promise<void> {
-        const confirmed = await confirm("Abandon this case? Everything is preserved and it can be resumed later.");
+        const confirmed = await confirm(`Abandon this ${tl("CaseFile")}? Everything is preserved and it can be resumed later.`);
         if (confirmed) {
             await invoke("AbandonCase", {});
         }
@@ -283,7 +295,7 @@
         await invoke("ResumeCase", {});
     }
     const activePhase = computed(() => caseFile.value?.currentPhase ?? 2);
-    const activeDefinition = computed(() => config.phaseDefinitions.find(d => d.phase === activePhase.value));
+    const activeDefinition = computed(() => phaseDefinitions.value.find(d => d.phase === activePhase.value));
     const activeGate = computed(() => caseFile.value?.gateResults.find(g => g.phase === activePhase.value));
 
     const statusLabelClass = computed(() => {
@@ -526,7 +538,7 @@
             await invoke("CloseCase", { bag: { ...closeForm } });
             if (caseFile.value?.status === 3) {
                 isCloseModalOpen.value = false;
-                notification.value = "Case closed and archived.";
+                notification.value = `${t("CaseFile")} closed and archived.`;
                 notificationType.value = AlertType.Success;
             }
         }

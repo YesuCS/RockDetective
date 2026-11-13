@@ -19,7 +19,7 @@
                     <td>
                         {{ entry.text }}
                         <div v-if="entry.source !== 0" class="text-muted" style="font-size: 12.5px;">
-                            From {{ entry.source === 1 ? ("witness " + (entry.sourceParticipantName ?? "")) : "experiment learnings" }}
+                            From {{ entry.source === 1 ? (tl("Witness") + " " + (entry.sourceParticipantName ?? "")) : (tl("Experiment") + " learnings") }}
                         </div>
                         <div v-if="entryType === 2" class="text-muted" style="font-size: 12.5px;">
                             <span v-if="entry.binaryFileName"><i class="ti ti-paperclip"></i> {{ entry.binaryFileName }}</span>
@@ -69,7 +69,9 @@
     import { confirmDelete } from "@Obsidian/Utility/dialogs";
     import { RockDateTime } from "@Obsidian/Utility/rockDateTime";
     import type { ListItemBag } from "@Obsidian/ViewModels/Utility/listItemBag";
-    import { timelineTypeNames, type CaseEntryBag } from "../types.partial";
+    import { timelineTypeNames, useTerms, type CaseEntryBag } from "../types.partial";
+
+    const { tl } = useTerms();
 
     const props = defineProps({
         entries: {
@@ -83,6 +85,10 @@
         title: {
             type: String,
             required: true
+        },
+        itemName: {
+            type: String,
+            default: ""
         },
         emptyText: {
             type: String,
@@ -124,7 +130,7 @@
     const binaryFile = ref<ListItemBag | null | undefined>(null);
     const timelineTypeValue = ref("0");
 
-    const modalTitle = computed(() => (editing.idKey ? "Edit " : "Add ") + props.title.replace(/s$/, ""));
+    const modalTitle = computed(() => (editing.idKey ? "Edit " : "Add ") + (props.itemName || props.title.replace(/s$/, "")));
 
     const timelineTypeItems: ListItemBag[] = timelineTypeNames.map((name, index) => ({ value: String(index), text: name }));
 
@@ -167,7 +173,7 @@
         if (!entry.idKey) {
             return;
         }
-        const confirmed = await confirmDelete(props.title.replace(/s$/, ""));
+        const confirmed = await confirmDelete(props.itemName || props.title.replace(/s$/, ""));
         if (confirmed) {
             emit("delete", entry.idKey);
         }

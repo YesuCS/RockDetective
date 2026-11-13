@@ -1,5 +1,5 @@
 <template>
-    <Panel title="Probability Tree" :hasCollapse="true">
+    <Panel :title="title" :hasCollapse="true">
         <template #headerActions>
             <RockButton v-if="canEdit" :btnType="BtnType.Default" :btnSize="BtnSize.ExtraSmall" @click.stop="onAdd(null)">
                 <i class="ti ti-plus"></i>
@@ -29,15 +29,15 @@
             </div>
         </template>
 
-        <Modal v-model="isModalOpen" :title="editing.idKey ? 'Edit Hypothesis' : 'Add Hypothesis'" saveText="Save" @save="onSave">
+        <Modal v-model="isModalOpen" :title="(editing.idKey ? 'Edit ' : 'Add ') + t('Hypothesis')" saveText="Save" @save="onSave">
             <RockForm>
-                <TextBox v-model="editing.name" label="Hypothesis" rules="required" help="A candidate cause, stated so it can be tested." />
+                <TextBox v-model="editing.name" :label="t('Hypothesis')" rules="required" help="A candidate cause, stated so it can be tested." />
                 <TextBox v-model="editing.description" label="Details (optional)" textMode="multiline" :rows="2" />
                 <NumberBox v-model="probabilityValue" label="Probability (%)" :minimumValue="0" :maximumValue="100" />
                 <DropDownList v-model="statusValue" label="Status" :items="statusItems" :showBlankItem="false" />
                 <TextBox v-if="statusValue === '2'" v-model="editing.ruledOutReason" label="Ruled Out Reason" textMode="multiline" :rows="2" />
                 <NotificationBox v-if="statusValue === '3'" alertType="warning">
-                    Confirming a hypothesis requires a supporting experiment; the Reevaluate gate checks for one. Keep the sniff test in mind: is this explanation logical and likely?
+                    Confirming a {{ tl("Hypothesis") }} requires a supporting {{ tl("Experiment") }}; the gate checks for one. Keep the sniff test in mind: is this explanation logical and likely?
                 </NotificationBox>
             </RockForm>
         </Modal>
@@ -58,12 +58,18 @@
     import { BtnSize } from "@Obsidian/Enums/Controls/btnSize";
     import { confirmDelete } from "@Obsidian/Utility/dialogs";
     import type { ListItemBag } from "@Obsidian/ViewModels/Utility/listItemBag";
-    import { hypothesisStatusNames, type HypothesisBag } from "../types.partial";
+    import { hypothesisStatusNames, useTerms, type HypothesisBag } from "../types.partial";
+
+    const { t, tl } = useTerms();
 
     const props = defineProps({
         hypotheses: {
             type: Array as PropType<HypothesisBag[]>,
             required: true
+        },
+        title: {
+            type: String,
+            default: "Probability Tree"
         },
         canEdit: {
             type: Boolean,
@@ -139,7 +145,7 @@
         if (!node.idKey) {
             return;
         }
-        const confirmed = await confirmDelete("Hypothesis");
+        const confirmed = await confirmDelete(t("Hypothesis"));
         if (confirmed) {
             emit("delete", node.idKey);
         }

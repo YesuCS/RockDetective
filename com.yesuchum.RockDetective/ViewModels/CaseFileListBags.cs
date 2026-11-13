@@ -14,6 +14,8 @@ namespace com.yesuchum.RockDetective.ViewModels
         public bool CanAddCase { get; set; }
 
         public string DetailPageUrl { get; set; }
+
+        public string TerminologySettingsUrl { get; set; }
     }
 
     public class CaseFileListItemBag

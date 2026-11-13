@@ -25,7 +25,7 @@
         </template>
     </div>
     <div v-if="showLoopHint" class="text-muted mb-3" style="font-size: 13px;">
-        <i class="ti ti-refresh mr-1"></i>Phases 5 through 8 loop: keep cycling through Facts, Probability Tree, Experiments, and Reevaluate until a cause is confirmed beyond a reasonable doubt.
+        <i class="ti ti-refresh mr-1"></i>Phases 5 through 8 loop: keep cycling through {{ definitions.filter(d => d.isLoopPhase).map(d => d.name).join(", ") }} until a cause is confirmed beyond a reasonable doubt.
     </div>
 </template>
 
