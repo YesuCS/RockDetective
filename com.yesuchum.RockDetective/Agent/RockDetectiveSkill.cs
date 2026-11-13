@@ -9,7 +9,6 @@ using com.yesuchum.RockDetective.Mcp;
 
 namespace com.yesuchum.RockDetective.Agent
 {
-    [AgentSkillName( "Rock Detective" )]
     [AgentSkillGuid( "2C5BE126-3BEC-4B15-A2F4-80FD685ABE84" )]
     [EntityTypeGuid( "AB74DD39-8E95-44A5-B057-63039BAE8AB3" )]
     [Description( "Reads Rock Detective problem-solving case files and searches the web server's IIS logs for evidence." )]
@@ -72,7 +71,7 @@ namespace com.yesuchum.RockDetective.Agent
         [Description( "Searches the web server's IIS log files for recent requests. Times are returned in the server's local time zone and results are capped." )]
         [AgentPurpose( "Gathers request-level evidence such as errors and slow pages." )]
         [AgentGuardrail( "Only Rock administrators can search the logs." )]
-        [AgentToolName( "Search IIS Logs" )]
+        [AgentToolName( "SearchIISLogs" )]
         [AgentToolGuid( "125ED239-935B-4013-84A4-D747F42DED48" )]
         public AgentToolResult SearchIisLogs(
             [Description( "How many minutes back to search. Defaults to 60 and cannot exceed 10080 (7 days)." )]
