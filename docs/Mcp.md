@@ -19,11 +19,11 @@ Either way, you need Rock Detective 1.1.0 or later on Rock 19.7 or later.
 
 ## Option 1: Rock's MCP server
 
-Rock registers a **Rock Detective** skill on its own when the plugin is installed and Rock restarts. All you do is add it to an agent.
+Rock registers a **Rock Detective Skill** on its own when the plugin is installed and Rock restarts. All you do is add it to an agent.
 
 1. Go to **Admin Tools > System > AI Agents > Agents**.
 2. Open the MCP agent you already use, or add a new agent, set its type to **MCP**, and give it a slug like `rock-detective`.
-3. Add the **Rock Detective** skill to the agent and choose which of its three tools to turn on.
+3. Add the **Rock Detective Skill** to the agent and choose which of its three tools to turn on.
 4. Save. The agent's address is your Rock address plus `/api/v2/mcp/` plus the slug:
 
 ```

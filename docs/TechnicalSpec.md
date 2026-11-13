@@ -168,6 +168,8 @@ Things to know:
 - Search IIS Logs requires Administrate on `Rock.Security.GlobalDefault`. An agent can be opened up to people who should never read server logs, so the tool checks for itself.
 - Results go through `Success( payload )`, which Rock serializes with System.Text.Json. Return plain objects or bags, not Newtonsoft `JToken`s.
 - A `McpToolException` becomes `Error( message )`.
+- Rock names the skill from the class name ("Rock Detective Skill") and a tool from its method name, or from `[AgentToolName]` when there is one. The attribute value is split on capitals like a method name, so it has to be written without spaces: `SearchIISLogs`, which Rock shows as "Search IIS Logs".
+- `Agent/RockDetectiveStartup.cs` is an `IRockStartup` that checks the skill's EntityType row on every start and restores its `AssemblyName` if it is blank or wrong. Rock blanks that column when it starts without the class (a rollback to 1.0.1, or an uninstall that leaves the entity type behind) and does not fill it back in when the class returns. With it blank, Rock cannot find the type behind the skill, so the agent lists no tools and a call fails with "The plugin collection does not contain a plugin".
 
 ### Direct endpoint
 

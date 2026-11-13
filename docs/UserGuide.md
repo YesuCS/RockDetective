@@ -36,7 +36,7 @@ Only the `content` folder gets copied. Anything else in the package is for the R
 - Two scheduled jobs, **Rock Detective Witness Reminders** and **Rock Detective Follow-Up Checks**, both active by default.
 - Three system communications you can reword under Admin Tools > Communications > System Communications (search "Rock Detective").
 - Four case categories: Software Bug, Performance, Process, and Ministry Operations.
-- A **Rock Detective** skill for Rock's AI agents, plus a direct MCP endpoint, so an AI assistant can read cases and search the web server's IIS logs. See the [MCP Guide](Mcp.md).
+- A **Rock Detective Skill** for Rock's AI agents, plus a direct MCP endpoint, so an AI assistant can read cases and search the web server's IIS logs. See the [MCP Guide](Mcp.md).
 
 The migration does not set any page security, so the pages inherit it from Installed Plugins. If people outside Rock Administration will use Rock Detective, give them View on the Rock Detective page, the Case Board, and the Witness Statement page, and put them in the Rock Detective Users role. Terminology Settings is for administrators. Only people with Administrate on its block can see or change the wording, and everyone else gets a notice instead.
 
