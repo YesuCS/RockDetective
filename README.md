@@ -1,26 +1,30 @@
 # Rock Detective
 
-Rock Detective is a self-contained Rock RMS Obsidian plugin that runs problems through Jon Edmiston's Triumphant Problem Solving method as case files. A case owner works nine gated phases, and witnesses submit statements or have them recorded. Facts, a probability tree, and experiments live on a case board with a loop through phases 5 to 8. Closed cases go to an archive with a postmortem and a PDF export. Any problem type fits: bugs, performance, process, ministry operations.
+Rock Detective is a self-contained Rock RMS Obsidian plugin that runs problems through Jon Edmiston's Triumphant Problem Solving method as case files. A case owner works nine gated phases, and witnesses submit statements or have them recorded. Facts, a probability tree, and experiments live on a case board with a loop through phases 5 to 8. Closed cases go to an archive with a postmortem and a PDF export. Any problem type fits: bugs, performance, process, ministry operations, and each case category can have its own names for the phases, roles, and terms. An MCP endpoint lets an AI assistant read cases and search the web server's IIS logs.
 
-The current version is 1.0.1, and it needs Rock 18.2 or later.
+The current version is 1.1.0, and it needs Rock 18.2 or later.
 
 ## Documentation
 
-- [User Guide](docs/UserGuide.md): install, opening a case, the Case Board, witness statements, closing and follow-up, settings, security.
-- [Technical Specification](docs/TechnicalSpec.md): architecture, schema, entity plumbing, gate evaluator, witness flow, jobs, PDF, migrations, build and deploy.
+- [User Guide](docs/UserGuide.md): install, opening a case, the Case Board, witness statements, closing and follow-up, renaming things for your ministry, settings, security.
+- [MCP Guide](docs/Mcp.md): connecting an AI assistant, the three tools, searching IIS logs, the `iislogs` Lava command.
+- [REST API](docs/RestApi.md): every endpoint, request field, response shape, and enum value.
+- [Technical Specification](docs/TechnicalSpec.md): architecture, schema, entity plumbing, gate evaluator, terminology, witness flow, jobs, MCP endpoint, IIS logs, PDF, migrations, build and deploy.
 - [Uninstall Guide](docs/Uninstall.md): file removal, data removal SQL, Rock configuration cleanup.
 
 ## Repo layout
 
 ```
 com.yesuchum.RockDetective/           C# class library: entities, blocks,
-                                      jobs, REST API, PDF export, plugin
-                                      migration, gate evaluator.
+                                      jobs, REST API, MCP endpoint, IIS log
+                                      reader, PDF export, plugin migrations,
+                                      gate evaluator.
 com.yesuchum.RockDetective.Obsidian/  Vue 3 and TypeScript Obsidian
-                                      frontends for the three blocks.
+                                      frontends for the four blocks.
 com.yesuchum.RockDetective.Tests/     MSTest unit tests for the gate
                                       evaluator.
-docs/                                 User guide, technical spec, uninstall.
+docs/                                 User guide, MCP guide, REST API,
+                                      technical spec, uninstall.
 ```
 
 ## Build

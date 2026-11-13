@@ -48,13 +48,18 @@ DELETE FROM [ReminderType] WHERE [Guid] = 'A746FC6B-B670-4EF7-AC4D-D99998031480'
 
 All of this is optional housekeeping; none of it breaks anything if left behind.
 
-- **Pages:** Admin Tools > Installed Plugins > Rock Detective. Delete the child pages first (Case Board, Witness Statement).
-- **Block types:** the three under the "Rock Detective" category.
+- **Pages:** Admin Tools > Installed Plugins > Rock Detective. Delete the child pages first (Case Board, Witness Statement, Terminology Settings).
+- **Block types:** the four under the "Rock Detective" category.
 - **Security role:** the **Rock Detective Users** group.
 - **System communications:** the three titled "Rock Detective ..." under Admin Tools > Communications > System Communications.
 - **Jobs:** **Rock Detective Witness Reminders** and **Rock Detective Follow-Up Checks**.
 - **Entity types:** the rows named `com.yesuchum.RockDetective.*`. Delete any that are still there after the restart.
-- **Categories:** the four seeded Case File categories (Software Bug, Performance, Process, Ministry Operations).
+- **Categories:** the four seeded Case File categories (Software Bug, Performance, Process, Ministry Operations), plus any you added.
+- **Attributes:** the two global attributes named "Rock Detective ..." under Admin Tools > General > Global Attributes, and the **Rock Detective Terminology** category attribute. This removes all three, along with any wording saved in them:
+  ```sql
+  DELETE FROM [Attribute] WHERE [Key] LIKE 'com_yesuchum_RockDetective_%';
+  ```
+- **REST controller:** the **RockDetectiveMcp** entry under Admin Tools > Security > REST Controllers goes away on its own once the DLL is gone and Rock restarts. Delete the REST key you made for it if nothing else uses it.
 
 ## Restart
 

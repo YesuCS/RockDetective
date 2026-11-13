@@ -23,7 +23,7 @@ Use this when the Rock Shop isn't an option, like a staging box or an instance w
 3. Copy everything inside the package's `content` folder into the Rock web root, the folder the Rock site points to in IIS (the one with `web.config` and `Bin` in it), and merge it with the folders already there. When you're done, these should exist:
    ```
    Bin\com.yesuchum.RockDetective.dll
-   Plugins\com_yesuchum\RockDetective\   (three .obs.js files)
+   Plugins\com_yesuchum\RockDetective\   (four .obs.js files)
    ```
 4. Start the application pool. The plugin migration runs on startup and creates the tables, pages, security role, system communications, and jobs.
 
@@ -31,13 +31,14 @@ Only the `content` folder gets copied. Anything else in the package is for the R
 
 ### What you get
 
-- Pages under Admin Tools > Installed Plugins > Rock Detective: the case list, the Case Board, and the Witness Statement page. The last two are hidden from navigation and open from the list and from emails.
+- Pages under Admin Tools > Installed Plugins > Rock Detective: the case list, the Case Board, the Witness Statement page, and Terminology Settings. The Case Board and Witness Statement page are hidden from navigation and open from the list and from emails.
 - A **Rock Detective Users** security role with View and Edit on case files. Rock Administration gets View, Edit, and Administrate.
 - Two scheduled jobs, **Rock Detective Witness Reminders** and **Rock Detective Follow-Up Checks**, both active by default.
 - Three system communications you can reword under Admin Tools > Communications > System Communications (search "Rock Detective").
 - Four case categories: Software Bug, Performance, Process, and Ministry Operations.
+- An MCP endpoint, so an AI assistant can read cases and search the web server's IIS logs. See the [MCP Guide](Mcp.md).
 
-The migration does not set any page security, so the pages inherit it from Installed Plugins. If people outside Rock Administration will use Rock Detective, give them View on the Rock Detective page and its two child pages, and put them in the Rock Detective Users role.
+The migration does not set any page security, so the pages inherit it from Installed Plugins. If people outside Rock Administration will use Rock Detective, give them View on the Rock Detective page, the Case Board, and the Witness Statement page, and put them in the Rock Detective Users role. Terminology Settings is for administrators. Only people with Administrate on its block can see or change the wording, and everyone else gets a notice instead.
 
 ## Opening a case
 
@@ -138,6 +139,72 @@ Any case that isn't closed can be **abandoned**. It stays on the other tabs, loc
 
 **Export PDF** on the board produces the case file as a report: cover, problem statement, timeline, facts, evidence, probability tree, experiment log, witness statements, and postmortem. Sections with nothing in them are left out.
 
+## Making it sound like your ministry
+
+Out of the box, Rock Detective talks like a detective: case, witness, hypothesis, experiment. That fits a software bug. It can feel off when the "case" is a guest follow-up process and the "witnesses" are your volunteers. Terminology Settings lets you rename all of it.
+
+Click **Terminology Settings** at the top right of the case list. The button only shows for people with Administrate on the Terminology Settings block, which Rock Administration has by default. To let someone else manage the wording, give them Administrate on that block from its security settings.
+
+### Pick what it applies to
+
+The **Applies To** dropdown at the top decides who gets the wording you're about to enter:
+
+- **All categories** sets the wording for every case.
+- **A single category**, like Ministry Operations, sets the wording for cases in that category only.
+
+When both are set, the category's wording wins. That means you can leave software cases as they are and give your ministry categories their own language. A case picks up its wording from its category, so changing a case's category on the board changes its wording too.
+
+To add a category of your own, go to **Admin Tools > System > Category Manager**, choose the **Case File** entity type, and add it there. It shows up in the Applies To dropdown right away. The naming itself is always set on Terminology Settings; the Category Manager doesn't show it.
+
+### What you can rename
+
+| Section | What it changes |
+|---|---|
+| Terms | The words for people and things: Case, Owner, Champion, Recorder, Communicator, Member, Witness, Fact, Timeline Event, Evidence, Hypothesis, Experiment, and Statement. Enter one of each, like Volunteer, and Rock works out the plural (Volunteers) on its own. |
+| Phases | The name of each of the nine phases, the guidance shown under it, and its prompts (one per line). |
+| Gate Wording | The checklist sentences on each phase. |
+
+Leave a box blank to keep the standard wording, which shows in gray inside the box. **Reset to Standard Wording** clears everything for the selection in Applies To.
+
+Renaming changes words only. The nine phases stay in the same order, and each gate still checks the same thing. The numbers behind the gates are block settings, covered under Settings below.
+
+### Letting your terms carry through
+
+If you rename Champion to Pastoral Advisor, the standard guidance and gate sentences pick that up on their own. Your own guidance, prompts, and gate sentences can do the same if you write the term in curly braces instead of typing the word:
+
+| You type | You get (with Champion renamed to Pastoral Advisor, Fact to Observation) |
+|---|---|
+| `{Champion}` | Pastoral Advisor |
+| `{champion}` | pastoral advisor |
+| `{fact+}` | observations (always more than one) |
+| `{fact#}` | observation or observations, matching the gate's number |
+| `{count}` | the gate's required number |
+
+So a Fact List gate written as `Record at least {count} {fact#} from the ministry floor.` reads "Record at least 3 observations from the ministry floor." on an Advanced case and "Record at least 1 observation from the ministry floor." on a Simple one. The names inside the braces are the standard terms with no spaces: `caseFile`, `owner`, `champion`, `recorder`, `communicator`, `member`, `witness`, `fact`, `timelineEvent`, `evidence`, `hypothesis`, `experiment`, and `statement`.
+
+### An example
+
+A Ministry Process category set up for reviewing how a ministry process is working might look like this:
+
+| Standard | Renamed |
+|---|---|
+| Case | Process Review |
+| Owner | Ministry Lead |
+| Champion | Pastoral Advisor |
+| Witness | Volunteer |
+| Fact | Observation |
+| Hypothesis | Possible Cause |
+| Experiment | Trial Run |
+| Fact List (phase 5) | What We Know |
+| Probability Tree (phase 6) | Possible Causes |
+| Postmortem (phase 9) | Lessons and Next Steps |
+
+### Where the wording shows up
+
+The Case Board, the phase column on the case list, the PDF export, and the MCP tools all use it. The three system communications do not. They are ordinary Rock communications, so reword those under Admin Tools > Communications > System Communications.
+
+Saved wording applies the next time a case loads. Nothing about the case's data changes, so you can rename things on cases that are already in progress.
+
 ## Settings
 
 ### Case Board block
@@ -164,6 +231,15 @@ The five minimums and the attestation setting sit under the **Gate Requirements*
 | Detail Page | Case Board | The page a case opens on. Required. |
 | Default View | My Requests | The tab shown first: My Requests, My Assignments, or All. |
 | Show All View To Everyone | Off | Widens the All tab past entity security. Opening a case still checks its own security. |
+
+### Global attributes
+
+These are under Admin Tools > General > Global Attributes.
+
+| Setting | Default | What it does |
+|---|---|---|
+| Rock Detective IIS Log Folder | Blank | The folder the IIS log search reads from, including its subfolders. Blank means `C:\inetpub\logs\LogFiles`. See the [MCP Guide](Mcp.md). |
+| Rock Detective Default Terminology | Blank | Where the All categories wording is stored. Change it on Terminology Settings, not here. |
 
 ### Witness Reminders job
 
