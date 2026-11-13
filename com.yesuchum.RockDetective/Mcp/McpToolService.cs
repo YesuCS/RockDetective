@@ -90,8 +90,12 @@ namespace com.yesuchum.RockDetective.Mcp
 
         private static JToken ListCases( JObject arguments, Rock.Model.Person person )
         {
-            var statusText = arguments.Value<string>( "status" );
-            var limit = Math.Min( Math.Max( arguments.Value<int?>( "limit" ) ?? 25, 1 ), 100 );
+            return ToJson( ListCases( arguments.Value<string>( "status" ), arguments.Value<int?>( "limit" ), person ) );
+        }
+
+        public static object ListCases( string statusText, int? requestedLimit, Rock.Model.Person person )
+        {
+            var limit = Math.Min( Math.Max( requestedLimit ?? 25, 1 ), 100 );
 
             using ( var detectiveContext = new RockDetectiveContext() )
             {
@@ -125,14 +129,17 @@ namespace com.yesuchum.RockDetective.Mcp
                     } )
                     .ToList();
 
-                return ToJson( cases );
+                return cases;
             }
         }
 
         private static JToken GetCase( JObject arguments, Rock.Model.Person person )
         {
-            var idKey = arguments.Value<string>( "idKey" );
+            return ToJson( GetCase( arguments.Value<string>( "idKey" ), person ) );
+        }
 
+        public static ViewModels.CaseFileBag GetCase( string idKey, Rock.Model.Person person )
+        {
             if ( idKey.IsNullOrWhiteSpace() )
             {
                 throw new McpToolException( "The idKey argument is required." );
@@ -159,9 +166,7 @@ namespace com.yesuchum.RockDetective.Mcp
                 var participants = detectiveContext.CaseParticipants.Where( p => p.CaseFileId == caseFile.Id ).ToList();
                 var statements = detectiveContext.CaseStatements.Where( s => s.CaseFileId == caseFile.Id ).ToList();
 
-                var bag = CaseMapper.ToCaseFileBag( caseFile, entries, hypotheses, experiments, participants, null, statements );
-
-                return ToJson( bag );
+                return CaseMapper.ToCaseFileBag( caseFile, entries, hypotheses, experiments, participants, null, statements );
             }
         }
 
@@ -177,9 +182,14 @@ namespace com.yesuchum.RockDetective.Mcp
                 MaxEntries = arguments.Value<int?>( "limit" ) ?? 100
             };
 
+            return ToJson( SearchIisLogs( options ) );
+        }
+
+        public static object SearchIisLogs( IisLogQueryOptions options )
+        {
             var result = IisLogReader.Query( options );
 
-            return ToJson( new
+            return new
             {
                 result.MatchedCount,
                 result.FilesScanned,
@@ -198,8 +208,8 @@ namespace com.yesuchum.RockDetective.Mcp
                     e.ClientIp,
                     e.UserName,
                     e.UserAgent
-                } )
-            } );
+                } ).ToList()
+            };
         }
 
         private static JToken ToJson( object value )

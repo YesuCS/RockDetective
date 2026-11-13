@@ -2,7 +2,7 @@ using Rock.Plugin;
 
 namespace com.yesuchum.RockDetective.Migrations
 {
-    [MigrationNumber( 2, "18.2" )]
+    [MigrationNumber( 2, "19.7" )]
     public class _002_AddIisLogPathSetting : Migration
     {
         private const string TextFieldType = "9C204CD0-1233-41C5-818A-C5DA439445AA";

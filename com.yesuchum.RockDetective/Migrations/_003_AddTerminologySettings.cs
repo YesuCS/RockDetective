@@ -2,7 +2,7 @@ using Rock.Plugin;
 
 namespace com.yesuchum.RockDetective.Migrations
 {
-    [MigrationNumber( 3, "18.2" )]
+    [MigrationNumber( 3, "19.7" )]
     public class _003_AddTerminologySettings : Migration
     {
         private const string CodeEditorFieldType = "1D0D3794-C210-48A8-8C68-3FBEC08A6BA5";

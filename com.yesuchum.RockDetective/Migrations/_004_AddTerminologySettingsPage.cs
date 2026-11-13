@@ -2,7 +2,7 @@ using Rock.Plugin;
 
 namespace com.yesuchum.RockDetective.Migrations
 {
-    [MigrationNumber( 4, "18.2" )]
+    [MigrationNumber( 4, "19.7" )]
     public class _004_AddTerminologySettingsPage : Migration
     {
         private const string InternalFullWidthLayout = "D65F783D-87A9-4CC9-8110-E83466A0EADB";
