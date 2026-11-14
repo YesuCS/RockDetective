@@ -1,13 +1,13 @@
 # Rock Detective
 
-Rock Detective is a self-contained Rock RMS Obsidian plugin that runs problems through Jon Edmiston's Triumphant Problem Solving method as case files. A case owner works nine gated phases, and witnesses submit statements or have them recorded. Facts, a probability tree, and experiments live on a case board with a loop through phases 5 to 8. Closed cases go to an archive with a postmortem and a PDF export. Any problem type fits: bugs, performance, process, ministry operations, and each case category can have its own names for the phases, roles, and terms. It adds a Rock Detective skill to Rock's AI agents, so an AI assistant connected over MCP can read cases and search the web server's IIS logs.
+Rock Detective is a self-contained Rock RMS Obsidian plugin that runs problems through Jon Edmiston's Triumphant Problem Solving method as case files. A case owner works nine gated phases, and witnesses submit statements or have them recorded. Facts, a probability tree, and experiments live on a case board with a loop through phases 5 to 8. Closed cases go to an archive with a postmortem and a PDF export. Any problem type fits: bugs, performance, process, ministry operations, and each case category can have its own names for the phases, roles, and terms. It adds a Rock Detective skill to Rock's AI agents, so an AI assistant connected over MCP can open a case, work it through every gated phase, document the findings and the fix, and search the web server's IIS logs along the way.
 
 The current version is 1.1.0, and it needs Rock 19.7 or later.
 
 ## Documentation
 
 - [User Guide](docs/UserGuide.md): install, opening a case, the Case Board, witness statements, closing and follow-up, renaming things for your ministry, settings, security.
-- [MCP Guide](docs/Mcp.md): connecting an AI assistant through Rock's MCP server or the direct endpoint, the three tools, searching IIS logs, the `iislogs` Lava command.
+- [MCP Guide](docs/Mcp.md): connecting an AI assistant through Rock's MCP server or the direct endpoint, the tools, letting an assistant work a case on its own, searching IIS logs, the `iislogs` Lava command.
 - [REST API](docs/RestApi.md): every endpoint, request field, response shape, and enum value.
 - [Technical Specification](docs/TechnicalSpec.md): architecture, schema, entity plumbing, gate evaluator, terminology, witness flow, jobs, MCP endpoint, IIS logs, PDF, migrations, build and deploy.
 - [Uninstall Guide](docs/Uninstall.md): file removal, data removal SQL, Rock configuration cleanup.

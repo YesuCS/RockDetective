@@ -36,7 +36,7 @@ Only the `content` folder gets copied. Anything else in the package is for the R
 - Two scheduled jobs, **Rock Detective Witness Reminders** and **Rock Detective Follow-Up Checks**, both active by default.
 - Three system communications you can reword under Admin Tools > Communications > System Communications (search "Rock Detective").
 - Four case categories: Software Bug, Performance, Process, and Ministry Operations.
-- A **Rock Detective Skill** for Rock's AI agents, plus a direct MCP endpoint, so an AI assistant can read cases and search the web server's IIS logs. See the [MCP Guide](Mcp.md).
+- A **Rock Detective Skill** for Rock's AI agents, plus a direct MCP endpoint, so an AI assistant can open and work cases through every phase, document what it finds, and search the web server's IIS logs. See the [MCP Guide](Mcp.md).
 
 The migration does not set any page security, so the pages inherit it from Installed Plugins. If people outside Rock Administration will use Rock Detective, give them View on the Rock Detective page, the Case Board, and the Witness Statement page, and put them in the Rock Detective Users role. Terminology Settings is for administrators. Only people with Administrate on its block can see or change the wording, and everyone else gets a notice instead.
 
@@ -77,7 +77,7 @@ Phase 8 has two extra buttons. **Loop Back to Facts** sends the case back to pha
 
 ### Panels
 
-- **Fact List.** Specific, correct, pertinent only. Mark corroboration honestly; witness statements are never fully trusted.
+- **Fact List.** Specific, correct, pertinent only. Mark corroboration honestly; witness statements are never fully trusted. Anything an AI assistant added says so under the entry.
 - **Timeline.** When it started, last known good, what changed, what else was happening. Events sort by date, oldest first.
 - **Evidence.** Protect the crime scene; capture logs, configs, and screenshots before anything changes. Each item can carry an attachment, a link, or both.
 - **Probability Tree.** Brainstorm candidate causes first and assign probabilities second. Child nodes break a hypothesis down. A hypothesis is Proposed, Testing, Ruled Out (with a reason), or Confirmed. A confirmed hypothesis only satisfies the Reevaluate gate if an experiment testing it came out Supported. You can't delete a hypothesis that has children or linked experiments.
@@ -137,7 +137,7 @@ Any case that isn't closed can be **abandoned**. It stays on the other tabs, loc
 
 ### Export PDF
 
-**Export PDF** on the board produces the case file as a report: cover, problem statement, timeline, facts, evidence, probability tree, experiment log, witness statements, and postmortem. Sections with nothing in them are left out.
+**Export PDF** on the board produces the case file as a report. The cover shows the case's key (like `OX9mQWPQo8`) instead of its number, since the number is only a database Id and would make your first ministry review look like the third of something. The report has the cover, problem statement, timeline, facts, evidence, probability tree, experiment log, witness statements, and postmortem. Sections with nothing in them are left out.
 
 ## Making it sound like your ministry
 

@@ -1,8 +1,8 @@
 # Rock Detective MCP Guide
 
-MCP (Model Context Protocol) is how an AI assistant like Claude talks to another system. Rock Detective plugs into it, so you can ask an assistant things like "what cases are open?" or "show me the 500 errors from the last hour" and it gets the answer straight from your Rock server.
+MCP (Model Context Protocol) is how an AI assistant like Claude talks to another system. Rock Detective plugs into it, so an assistant can do more than answer "what cases are open?". It can open a case, work it through every phase of the method, and close it with a postmortem, leaving a case file that documents what was found, what was decided, and what fixed it.
 
-This guide covers the two ways to connect, the tools the assistant gets, and the IIS log search. You don't need to know how MCP works to use it.
+This guide covers the two ways to connect, the tools the assistant gets, how it works a case on its own, and the IIS log search. You don't need to know how MCP works to use it.
 
 ## Two ways to connect
 
@@ -12,8 +12,9 @@ This guide covers the two ways to connect, the tools the assistant gets, and the
 | Address | `/api/v2/mcp/{your agent's slug}` | `/api/com_yesuchum/rockdetective/mcp` |
 | Best for | Most churches. Rock Detective sits next to Rock's other skills (people, groups, giving) in one connection. | A quick connection with nothing but a REST key, or a script that only needs Rock Detective. |
 | Who can search IIS logs | Rock administrators. | Whoever you allow on the REST action. |
+| Choosing which tools are on | Per agent, tool by tool. | All tools, always. |
 
-Both give the assistant the same three tools and the same answers. Start with Rock's MCP server unless you have a reason not to.
+Both give the assistant the same tools and the same answers. Start with Rock's MCP server unless you have a reason not to.
 
 Either way, you need Rock Detective 1.1.0 or later on Rock 19.7 or later.
 
@@ -23,7 +24,7 @@ Rock registers a **Rock Detective Skill** on its own when the plugin is installe
 
 1. Go to **Admin Tools > System > AI Agents > Agents**.
 2. Open the MCP agent you already use, or add a new agent, set its type to **MCP**, and give it a slug like `rock-detective`.
-3. Add the **Rock Detective Skill** to the agent and choose which of its three tools to turn on.
+3. Add the **Rock Detective Skill** to the agent and choose which of its tools to turn on. Leave the tools that change cases off if the assistant should only read.
 4. Save. The agent's address is your Rock address plus `/api/v2/mcp/` plus the slug:
 
 ```
@@ -32,7 +33,7 @@ https://rock.example.org/api/v2/mcp/rock-detective
 
 Connect your assistant to that address the same way you connect to any other Rock MCP agent. Who can use it is controlled by the agent's security in Rock.
 
-The tools show up to the assistant as **List Cases**, **Get Case**, and **Search IIS Logs**.
+The tools show up to the assistant with names like **List Cases**, **Create Case**, and **Search IIS Logs**.
 
 ## Option 2: The direct endpoint
 
@@ -69,7 +70,7 @@ In Claude Code:
 claude mcp add --transport http rock-detective https://rock.example.org/api/com_yesuchum/rockdetective/mcp --header "Authorization-Token: YOUR_REST_KEY"
 ```
 
-In any other client, add a remote (HTTP) MCP server with that URL and that header. The tools show up as `list_cases`, `get_case`, and `search_iis_logs`.
+In any other client, add a remote (HTTP) MCP server with that URL and that header. The tools show up with names like `list_cases`, `create_case`, and `search_iis_logs`.
 
 ## The tools
 
@@ -81,7 +82,46 @@ In any other client, add a remote (HTTP) MCP server with that URL and that heade
 
 Phase names, terms, and gate wording come back the way that case's category has them set up under Terminology Settings, so the assistant uses the same words your team sees on the Case Board.
 
-The tools are read-only. To open a case or add to one from a script, use the [REST API](RestApi.md).
+Those three only read. The rest change cases:
+
+| Tool | What it does |
+|---|---|
+| List Categories | Lists the categories a case can be opened under. |
+| Create Case | Opens a case in Simple or Advanced mode. The signed-in person becomes the owner. |
+| Update Case | Changes the title, problem statement, or category, or marks the problem statement as verified. |
+| Add Participant | Adds a team member or witness, either a Rock person or someone outside Rock. |
+| Waive Champion | Records that the case will go without a Champion, with the reason. |
+| Record Statement | Records what a participant said, and can add it to the fact list. |
+| Add Entry | Adds a fact, a timeline event, or a piece of evidence. |
+| Add Hypothesis | Adds a candidate cause to the probability tree, optionally under another one. |
+| Update Hypothesis | Changes a probability, or marks a hypothesis Testing, Ruled Out, or Confirmed. |
+| Add Experiment | Logs a planned test of one hypothesis. |
+| Record Experiment Result | Records the outcome, the changes made, whether they were reverted, and what was learned. |
+| Save Phase Notes | Saves the reasoning and decisions for a phase. |
+| Complete Phase | Completes the current phase and moves to the next one. |
+| Loop Back | Sends the case back to the fact list for another round. |
+| Champion Sign-Off | Records the Champion's sign-off. Only works for the person who is the Champion. |
+| Close Case | Closes the case with its postmortem and an optional follow-up date. |
+
+## Letting an assistant work a case on its own
+
+Every tool that changes a case answers with where the case stands: the current phase, that phase's guidance and prompts, its checklist with each line marked met or not, and the next step. That is what lets an assistant run the method without a person steering it. It opens a case, reads what the phase asks for, does that work, and moves on.
+
+A request as simple as this is enough to start:
+
+> Connect card submissions have been failing on Sunday mornings. Open a Rock Detective case, check the IIS logs, and work it through.
+
+What keeps the result trustworthy:
+
+- **The gates apply to the assistant too.** Complete Phase only works when every line of the phase's checklist is met. When it isn't, the assistant is told what is still needed and has to do that work first. The minimums are the same ones set on the Case Board block.
+- **What the assistant adds is marked.** Facts, timeline events, and evidence it adds show "Added by an AI assistant" on the Case Board and "AI Assistant" as the source in the PDF.
+- **It has to say what is verified.** A fact is only marked corroborated when the assistant says evidence backs it, and an Advanced case can't leave Define the Problem until the problem statement is marked verified.
+- **The Champion stays a person.** The assistant can only sign off as Champion if the person it is signed in as is the Champion on that case. Otherwise it can waive the Champion with a reason when it opens a small case, or a person signs off on the Case Board.
+- **A closed case is closed.** The assistant can't change a closed or abandoned case. Reopening and resuming happen on the Case Board.
+
+The assistant works as the person it signed in with. It can open cases as that person, and it can only change cases that person owns or has Edit on. To let it read without changing anything, connect through Rock's MCP server and turn the changing tools off on the agent. The direct endpoint always offers every tool, so use it only where the assistant is meant to work cases.
+
+For a script that only needs to push data in, the [REST API](RestApi.md) is still there.
 
 ## Searching IIS logs
 
@@ -157,7 +197,7 @@ Inside the block, `logEntries` is the list of entries and `logResult` has `Match
 
 ## Security
 
-- The assistant sees what its signed-in person can see. Case security applies to every call, on both routes.
+- The assistant sees what its signed-in person can see, and can change what that person can change. Case security applies to every call, on both routes.
 - IIS logs include IP addresses and usernames. Through Rock's MCP server, only Rock administrators can search them. Through the direct endpoint, anyone you allow on the REST action can, so give that to the same people you'd let read the logs on the server.
 - If you only want one route, leave the other closed: don't add the skill to an agent, or don't grant anyone the REST action.
 - The `iislogs` Lava command is off until an administrator enables it, the same as `execute` or `sql`.

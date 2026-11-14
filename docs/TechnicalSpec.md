@@ -154,7 +154,22 @@ Behavior to know about:
 
 ## MCP
 
-There are two routes to the same three tools. Both call the typed methods on `Mcp/McpToolService.cs` (`ListCases`, `GetCase`, `SearchIisLogs`), so the logic and the security checks live in one place.
+There are two routes to the same 19 tools. Both call the same typed methods, so the logic and the security checks live in one place: the three read tools are on `Mcp/McpToolService.cs` (`ListCases`, `GetCase`, `SearchIisLogs`) and the sixteen that change cases are on `Mcp/CaseWorkflowService.cs`.
+
+### Case workflow service
+
+`CaseWorkflowService` is the write path for both MCP routes. It mirrors the Case Board's block actions rather than calling them, because block actions need a block instance. The rules it keeps the same:
+
+- A caller can change a case when they own it or have Edit on it, and never when it is Closed or Abandoned.
+- Complete Phase runs `GateEvaluator` on the current phase and refuses with the unmet checklist lines, worded through the case's terminology profile. It then applies the same auto-skip, Investigating, and Solved transitions as the board.
+- Gate minimums come from the Case Board block's own settings (looked up by the block guid the migration seeds), falling back to the evaluator defaults. The REST API's phase PATCH still uses defaults only.
+- Close Case requires the last phase and a complete postmortem.
+- Experiment learnings become one corroborated fact, as on the board.
+- Champion Sign-Off requires the caller to be the Champion.
+
+Two things are specific to this path. Entries it adds get `CaseEntrySource.Agent` (3), which the board renders as "Added by an AI assistant" and the PDF as "AI Assistant". And every method returns a progress object (current phase, its guidance and prompts, the checklist with each line's state, whether the phase is ready to complete, and a next step), which is what lets an assistant run the method without a person steering it.
+
+Reopen, resume, abandon, delete, and sending witness requests are deliberately not exposed. Those stay on the Case Board.
 
 ### Agent skill
 
@@ -184,7 +199,7 @@ It is stateless JSON-RPC 2.0 over HTTP, protocol version `2025-03-26`, with no S
 
 Auth is Rock's own: `[Authenticate, Secured]` on the POST action, so a client sends a REST key in the `Authorization-Token` header and the action is secured like any other under Security > REST Controllers.
 
-Its tools are listed in `Mcp/McpToolService.cs`, one `McpToolDefinition` each (name, description, JSON schema, handler). To add a tool, write the typed method, append a definition to the `_tools` list, and add a matching method to the skill. A handler throws `McpToolException` for anything the caller should read; that comes back as a normal result with `isError: true`, which is what MCP expects for tool failures. Anything else is logged to the exception log and returned as a generic error.
+Its tools are listed in `Mcp/McpToolService.cs` (read tools) and `Mcp/McpToolService.Write.cs` (the rest), one `McpToolDefinition` each (name, description, JSON schema, handler). To add a tool, write the typed method, add a definition, and add a matching method to the skill in `Agent/RockDetectiveSkill.Write.cs`. A handler throws `McpToolException` for anything the caller should read; that comes back as a normal result with `isError: true`, which is what MCP expects for tool failures. Anything else is logged to the exception log and returned as a generic error.
 
 | Tool | Notes |
 |---|---|
@@ -209,7 +224,7 @@ Its tools are listed in `Mcp/McpToolService.cs`, one `McpToolDefinition` each (n
 
 ## PDF
 
-`Pdf/CaseFileReport.cs` builds plain HTML; `Rock.Pdf.PdfGenerator` (Rock's bundled headless Chromium) renders it. No added dependency. It is served from a block action (base64 to the browser) and from `GET /cases/{idKey}/pdf`. Both need View on the case.
+The cover prints the case's IdKey, not the entity Id. `Pdf/CaseFileReport.cs` builds plain HTML; `Rock.Pdf.PdfGenerator` (Rock's bundled headless Chromium) renders it. No added dependency. It is served from a block action (base64 to the browser) and from `GET /cases/{idKey}/pdf`. Both need View on the case.
 
 ## Migrations
 
