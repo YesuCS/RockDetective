@@ -184,6 +184,7 @@ namespace com.yesuchum.RockDetective.Blocks
                 box.CanAdministrate = caseFile.IsAuthorized( Rock.Security.Authorization.ADMINISTRATE, currentPerson );
                 box.IsOwner = IsOwner( caseFile, currentPerson );
                 box.IsChampion = IsInRole( entities.Participants, currentPerson, ParticipantRole.Champion );
+                box.CanRecordChampionSignOff = CaseRules.CanSignOffAsChampion( entities.Participants, currentPerson, box.CanEdit );
                 box.IsPhaseJumpingRestricted = GetAttributeValue( AttributeKey.RestrictPhaseJumping ).AsBoolean();
             }
 
@@ -538,6 +539,11 @@ namespace com.yesuchum.RockDetective.Blocks
         {
             return WithEditableCase( idKey, ( detectiveContext, caseFile ) =>
             {
+                if ( caseFile.CurrentPhase != CasePhase.Reevaluate )
+                {
+                    return ActionBadRequest( "A case loops back from the Reevaluate phase." );
+                }
+
                 var states = CaseMapper.GetPhaseStates( caseFile );
                 var reevaluateState = states.GetState( CasePhase.Reevaluate );
 
@@ -549,6 +555,7 @@ namespace com.yesuchum.RockDetective.Blocks
 
                 reevaluateState.Data[PhaseStateKey.LoopBackCount] = ( loopCount + 1 ).ToString();
                 reevaluateState.Data[PhaseStateKey.LastLoopBackDateTime] = RockDateTime.Now.ToString( "s" );
+                CaseRules.ClearChampionSignOff( states );
 
                 foreach ( var loopPhase in new[] { CasePhase.FactList, CasePhase.ProbabilityTree, CasePhase.Experiments, CasePhase.Reevaluate } )
                 {
@@ -602,17 +609,21 @@ namespace com.yesuchum.RockDetective.Blocks
                     return ActionNotFound( "Case file not found." );
                 }
 
-                var participants = detectiveContext.CaseParticipants.AsNoTracking().Where( p => p.CaseFileId == caseFile.Id ).ToList();
-
-                if ( !IsInRole( participants, currentPerson, ParticipantRole.Champion ) )
+                if ( currentPerson == null || caseFile.Status == CaseStatus.Closed || caseFile.Status == CaseStatus.Abandoned )
                 {
-                    return ActionForbidden( "Only the case Champion can sign off." );
+                    return ActionForbidden( "This case cannot be signed off." );
+                }
+
+                var canEditCase = caseFile.IsAuthorized( Rock.Security.Authorization.EDIT, currentPerson ) || IsOwner( caseFile, currentPerson );
+                var refusal = CaseRules.GetChampionSignOffRefusal( detectiveContext, caseFile, currentPerson, canEditCase );
+
+                if ( refusal != null )
+                {
+                    return ActionBadRequest( refusal );
                 }
 
                 var states = CaseMapper.GetPhaseStates( caseFile );
-                var state = states.GetState( CasePhase.Reevaluate );
-                state.Data[PhaseStateKey.ChampionSignOffDateTime] = RockDateTime.Now.ToString( "s" );
-                state.Data[PhaseStateKey.ChampionSignOffPersonAliasId] = currentPerson.PrimaryAliasId.ToString();
+                CaseRules.RecordChampionSignOff( states, currentPerson );
                 CaseMapper.SetPhaseStates( caseFile, states );
                 StampModified( caseFile );
                 detectiveContext.SaveChanges();
@@ -765,12 +776,21 @@ namespace com.yesuchum.RockDetective.Blocks
                     entryService.Add( entry );
                 }
 
+                if ( !CaseRules.IsSafeUrl( bag.Url ) )
+                {
+                    return ActionBadRequest( CaseRules.UnsafeUrlMessage );
+                }
+
                 entry.EntryType = ( CaseEntryType ) bag.EntryType;
                 entry.Text = bag.Text;
                 entry.EventDateTime = bag.EventDateTime;
                 entry.TimelineEventType = bag.TimelineEventType.HasValue ? ( TimelineEventType? ) bag.TimelineEventType.Value : null;
                 entry.Url = bag.Url;
-                entry.Source = ( CaseEntrySource ) bag.Source;
+                if ( !entryId.HasValue )
+                {
+                    var requestedSource = ( CaseEntrySource ) bag.Source;
+                    entry.Source = requestedSource == CaseEntrySource.Agent ? CaseEntrySource.Direct : requestedSource;
+                }
                 entry.IsCorroborated = bag.IsCorroborated;
                 entry.ModifiedDateTime = RockDateTime.Now;
                 entry.ModifiedByPersonAliasId = RequestContext.CurrentPerson?.PrimaryAliasId;
@@ -1236,6 +1256,11 @@ namespace com.yesuchum.RockDetective.Blocks
                 }
 
                 var isReminder = statement.RequestStatus == StatementRequestStatus.Requested || statement.RequestStatus == StatementRequestStatus.Reminded;
+
+                if ( isReminder && statement.SentDateTime.HasValue && statement.SentDateTime.Value > RockDateTime.Now.AddHours( -1 ) )
+                {
+                    return ActionBadRequest( "This request was sent less than an hour ago. Give the witness some time before sending a reminder." );
+                }
                 var communicationGuid = isReminder
                     ? SystemGuid.SystemCommunication.WITNESS_STATEMENT_REMINDER
                     : SystemGuid.SystemCommunication.WITNESS_STATEMENT_REQUEST;
@@ -1288,8 +1313,8 @@ namespace com.yesuchum.RockDetective.Blocks
                 var mergeFields = Rock.Lava.LavaHelper.GetCommonMergeFields( null, person );
                 mergeFields.Add( "Person", person );
                 mergeFields.Add( "CaseNumber", caseFile.IdKey );
-                mergeFields.Add( "CaseTitle", caseFile.Title );
-                mergeFields.Add( "RequestPrompt", statement.RequestPrompt );
+                mergeFields.Add( "CaseTitle", caseFile.Title.EncodeHtml() );
+                mergeFields.Add( "RequestPrompt", statement.RequestPrompt.EncodeHtml() );
                 mergeFields.Add( "RequestorName", RequestContext.CurrentPerson?.FullName ?? "A case owner" );
                 mergeFields.Add( "StatementLink", statementUrl );
 
@@ -1336,6 +1361,11 @@ namespace com.yesuchum.RockDetective.Blocks
                 if ( statement.IsNullOrWhiteSpace() )
                 {
                     return ActionBadRequest( "A statement is required." );
+                }
+
+                if ( !CaseRules.IsSafeUrl( url ) )
+                {
+                    return ActionBadRequest( CaseRules.UnsafeUrlMessage );
                 }
 
                 participant.Role = ParticipantRole.Witness;
@@ -1395,6 +1425,11 @@ namespace com.yesuchum.RockDetective.Blocks
                 if ( statement.IsNullOrWhiteSpace() )
                 {
                     return ActionBadRequest( "A statement is required." );
+                }
+
+                if ( !CaseRules.IsSafeUrl( url ) )
+                {
+                    return ActionBadRequest( CaseRules.UnsafeUrlMessage );
                 }
 
                 statementEntity.Statement = statement;

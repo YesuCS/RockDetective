@@ -123,6 +123,16 @@ namespace com.yesuchum.RockDetective.Blocks
                     return ActionBadRequest( "Please write a statement before submitting." );
                 }
 
+                if ( !CaseRules.IsSafeUrl( url ) )
+                {
+                    return ActionBadRequest( CaseRules.UnsafeUrlMessage );
+                }
+
+                if ( IsSettled( statementEntity ) )
+                {
+                    return ActionBadRequest( "This request was already answered." );
+                }
+
                 statementEntity.Statement = statement;
                 statementEntity.Url = url.Truncate( 2000 );
                 statementEntity.BinaryFileId = ResolveBinaryFileId( binaryFileGuid );
@@ -143,6 +153,11 @@ namespace com.yesuchum.RockDetective.Blocks
         {
             return Resolve( participantIdKey, ( detectiveContext, statementEntity ) =>
             {
+                if ( IsSettled( statementEntity ) )
+                {
+                    return ActionBadRequest( "This request was already answered." );
+                }
+
                 statementEntity.Statement = reason.IsNotNullOrWhiteSpace() ? $"Declined: {reason}" : null;
                 statementEntity.RequestStatus = StatementRequestStatus.Declined;
                 statementEntity.SubmittedDateTime = RockDateTime.Now;
@@ -154,6 +169,13 @@ namespace com.yesuchum.RockDetective.Blocks
 
                 return ActionOk();
             } );
+        }
+
+        private static bool IsSettled( Model.CaseStatement statementEntity )
+        {
+            return statementEntity.RequestStatus == StatementRequestStatus.Submitted
+                || statementEntity.RequestStatus == StatementRequestStatus.Declined
+                || statementEntity.RequestStatus == StatementRequestStatus.ManuallyRecorded;
         }
 
         private static void CompleteRemindersIfSettled( RockDetectiveContext detectiveContext, Model.CaseStatement statementEntity )

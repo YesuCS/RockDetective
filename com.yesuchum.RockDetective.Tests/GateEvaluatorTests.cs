@@ -209,12 +209,12 @@ namespace com.yesuchum.RockDetective.Tests
         }
 
         [TestMethod]
-        public void Reevaluate_PassesWithExplicitLoopBack()
+        public void Reevaluate_FailsWithOnlyALoopBack()
         {
             var aggregate = AdvancedAggregate();
             aggregate.PhaseStates.GetState( CasePhase.Reevaluate ).Data[PhaseStateKey.LoopBackCount] = "1";
 
-            Assert.IsTrue( GateEvaluator.Evaluate( aggregate, CasePhase.Reevaluate ).IsMet );
+            Assert.IsFalse( GateEvaluator.Evaluate( aggregate, CasePhase.Reevaluate ).IsMet );
         }
 
         [TestMethod]

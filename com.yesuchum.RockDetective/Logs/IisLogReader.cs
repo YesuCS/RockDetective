@@ -21,6 +21,15 @@ namespace com.yesuchum.RockDetective.Logs
 
         private const int MaxMinutesHardCap = 10080;
 
+        private const int MaxDaysBackForRange = 30;
+
+        private const string RedactedValue = "[redacted]";
+
+        private static readonly string[] _sensitiveParameterParts = new[]
+        {
+            "rckipid", "rckid", "token", "key", "code", "password", "passwd", "pwd", "secret", "signature", "sig", "auth", "session", "ticket", "otp", "credential"
+        };
+
         public static IisLogQueryResultInfo Query( IisLogQueryOptions options )
         {
             options = options ?? new IisLogQueryOptions();
@@ -30,7 +39,33 @@ namespace com.yesuchum.RockDetective.Logs
             var maxEntries = Math.Min( Math.Max( options.MaxEntries, 1 ), MaxEntriesHardCap );
             var maxFiles = Math.Min( Math.Max( options.MaxFiles, 1 ), MaxFilesHardCap );
             var minutesBack = Math.Min( Math.Max( options.MinutesBack, 1 ), MaxMinutesHardCap );
-            var cutoffUtc = DateTime.UtcNow.AddMinutes( -minutesBack );
+            var nowUtc = DateTime.UtcNow;
+            var cutoffUtc = nowUtc.AddMinutes( -minutesBack );
+            var endUtc = nowUtc;
+            var isRange = options.StartDateTime.HasValue;
+
+            if ( isRange )
+            {
+                cutoffUtc = ToUtc( options.StartDateTime.Value );
+
+                if ( cutoffUtc < nowUtc.AddDays( -MaxDaysBackForRange ) )
+                {
+                    cutoffUtc = nowUtc.AddDays( -MaxDaysBackForRange );
+                }
+
+                endUtc = options.EndDateTime.HasValue ? ToUtc( options.EndDateTime.Value ) : nowUtc;
+
+                if ( endUtc > cutoffUtc.AddMinutes( MaxMinutesHardCap ) )
+                {
+                    endUtc = cutoffUtc.AddMinutes( MaxMinutesHardCap );
+                }
+
+                if ( endUtc <= cutoffUtc )
+                {
+                    result.Warning = "The end of the time range has to be after its start.";
+                    return result;
+                }
+            }
 
             var configuredPath = GlobalAttributesCache.Get().GetValue( LogPathAttributeKey );
 
@@ -50,10 +85,11 @@ namespace com.yesuchum.RockDetective.Logs
 
             try
             {
-                files = Directory.EnumerateFiles( logPath, "*.log", SearchOption.AllDirectories )
+                var candidates = Directory.EnumerateFiles( logPath, "*.log", SearchOption.AllDirectories )
                     .Select( f => new FileInfo( f ) )
-                    .Where( f => f.LastWriteTimeUtc >= cutoffUtc )
-                    .OrderByDescending( f => f.LastWriteTimeUtc )
+                    .Where( f => f.LastWriteTimeUtc >= cutoffUtc && ( !isRange || f.CreationTimeUtc <= endUtc ) );
+
+                files = ( isRange ? candidates.OrderBy( f => f.LastWriteTimeUtc ) : candidates.OrderByDescending( f => f.LastWriteTimeUtc ) )
                     .Take( maxFiles )
                     .ToList();
             }
@@ -65,11 +101,14 @@ namespace com.yesuchum.RockDetective.Logs
 
             if ( !files.Any() )
             {
-                result.Warning = $"No log files in '{logPath}' were modified within the last {minutesBack} minutes.";
+                result.Warning = isRange
+                    ? $"No log files in '{logPath}' cover that time range."
+                    : $"No log files in '{logPath}' were modified within the last {minutesBack} minutes.";
                 return result;
             }
 
             var entries = new List<IisLogEntryInfo>();
+            var matchedCount = 0;
 
             foreach ( var file in files )
             {
@@ -77,7 +116,7 @@ namespace com.yesuchum.RockDetective.Logs
 
                 try
                 {
-                    ParseFile( file.FullName, cutoffUtc, options, entries );
+                    matchedCount += ParseFile( file.FullName, cutoffUtc, endUtc, options, entries, maxEntries );
                 }
                 catch ( IOException )
                 {
@@ -89,24 +128,51 @@ namespace com.yesuchum.RockDetective.Logs
                 }
             }
 
-            result.MatchedCount = entries.Count;
-
-            var ordered = entries.OrderByDescending( e => e.DateTime ).ToList();
-
-            if ( ordered.Count > maxEntries )
-            {
-                ordered = ordered.Take( maxEntries ).ToList();
-                result.IsTruncated = true;
-            }
-
-            result.Entries = ordered;
+            result.MatchedCount = matchedCount;
+            result.Entries = entries.OrderByDescending( e => e.DateTime ).Take( maxEntries ).ToList();
+            result.IsTruncated = matchedCount > result.Entries.Count;
 
             return result;
         }
 
-        private static void ParseFile( string path, DateTime cutoffUtc, IisLogQueryOptions options, List<IisLogEntryInfo> entries )
+        private static DateTime ToUtc( DateTime value )
+        {
+            return value.Kind == DateTimeKind.Utc ? value : DateTime.SpecifyKind( value, DateTimeKind.Local ).ToUniversalTime();
+        }
+
+        public static string RedactQuery( string query )
+        {
+            if ( query.IsNullOrWhiteSpace() )
+            {
+                return query;
+            }
+
+            var pairs = query.Split( '&' );
+
+            for ( var i = 0; i < pairs.Length; i++ )
+            {
+                var separator = pairs[i].IndexOf( '=' );
+
+                if ( separator <= 0 )
+                {
+                    continue;
+                }
+
+                var name = pairs[i].Substring( 0, separator );
+
+                if ( _sensitiveParameterParts.Any( part => name.IndexOf( part, StringComparison.OrdinalIgnoreCase ) >= 0 ) )
+                {
+                    pairs[i] = name + "=" + RedactedValue;
+                }
+            }
+
+            return string.Join( "&", pairs );
+        }
+
+        private static int ParseFile( string path, DateTime cutoffUtc, DateTime endUtc, IisLogQueryOptions options, List<IisLogEntryInfo> entries, int maxEntries )
         {
             Dictionary<string, int> fieldMap = null;
+            var matchedCount = 0;
 
             using ( var stream = new FileStream( path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite ) )
             using ( var reader = new StreamReader( stream ) )
@@ -138,7 +204,7 @@ namespace com.yesuchum.RockDetective.Logs
 
                     var entryUtc = DateTime.SpecifyKind( entry.DateTime, DateTimeKind.Utc );
 
-                    if ( entryUtc < cutoffUtc )
+                    if ( entryUtc < cutoffUtc || entryUtc > endUtc )
                     {
                         continue;
                     }
@@ -167,9 +233,19 @@ namespace com.yesuchum.RockDetective.Logs
                         continue;
                     }
 
+                    matchedCount++;
                     entries.Add( entry );
+
+                    if ( entries.Count > maxEntries * 2 )
+                    {
+                        var newest = entries.OrderByDescending( e => e.DateTime ).Take( maxEntries ).ToList();
+                        entries.Clear();
+                        entries.AddRange( newest );
+                    }
                 }
             }
+
+            return matchedCount;
         }
 
         private static IisLogEntryInfo ParseLine( string line, Dictionary<string, int> fieldMap )
@@ -194,7 +270,7 @@ namespace com.yesuchum.RockDetective.Logs
                 DateTime = dateTime,
                 Method = GetField( parts, fieldMap, "cs-method" ),
                 UriStem = GetField( parts, fieldMap, "cs-uri-stem" ),
-                UriQuery = NormalizeEmpty( GetField( parts, fieldMap, "cs-uri-query" ) ),
+                UriQuery = RedactQuery( NormalizeEmpty( GetField( parts, fieldMap, "cs-uri-query" ) ) ),
                 Status = GetField( parts, fieldMap, "sc-status" ).AsInteger(),
                 SubStatus = GetField( parts, fieldMap, "sc-substatus" ).AsInteger(),
                 TimeTakenMs = GetField( parts, fieldMap, "time-taken" ).AsInteger(),

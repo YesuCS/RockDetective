@@ -73,7 +73,7 @@ namespace com.yesuchum.RockDetective.Agent
                 "Retrieves the full detail of a single case file." );
 
             Tool( "SearchIisLogs", "Search IIS Logs",
-                "Searches the web server's IIS log files for recent requests. Times are returned in the server's local time zone and results are capped. Only Rock administrators can use it.",
+                "Searches the web server's IIS log files for requests in a time range. Narrow it with the range and filters, because results are capped. Times are in the server's local time zone, and the values of sensitive query string parameters are redacted. Only Rock administrators can use it.",
                 "Gathers request-level evidence such as errors and slow pages." );
 
             Tool( "ListMyStatementRequests", "List My Statement Requests",
@@ -105,7 +105,7 @@ namespace com.yesuchum.RockDetective.Agent
                 "Builds the team and records who has information about the problem." );
 
             Tool( "WaiveChampion", "Waive Champion",
-                "Records that this case will go without a Champion, with the reason. Use it for problems small enough not to need an independent sanity check.",
+                "Records that this case will go without a Champion, with the reason. Use it for problems small enough not to need an independent sanity check. It is refused when the case already has a Champion.",
                 "Satisfies the team gate when no Champion is needed." );
 
             Tool( "RecordStatement", "Record Statement",
@@ -113,7 +113,7 @@ namespace com.yesuchum.RockDetective.Agent
                 "Documents what people reported about the problem." );
 
             Tool( "AddEntry", "Add Entry",
-                "Adds a fact, a timeline event, or a piece of evidence to the case. Facts must be specific, correct, and pertinent. The entry is marked as added by an AI assistant.",
+                "Adds a fact, a timeline event, or a piece of evidence to the case. Facts must be specific, correct, and pertinent. Only facts count toward the fact list checklist; evidence and timeline events do not. The entry is marked as added by an AI assistant.",
                 "Records what is known, when things happened, and the evidence for it." );
 
             Tool( "AddHypothesis", "Add Hypothesis",
@@ -141,11 +141,11 @@ namespace com.yesuchum.RockDetective.Agent
                 "Moves the case forward once a phase's requirements are met." );
 
             Tool( "LoopBack", "Loop Back",
-                "Sends the case back to the fact list for another round through facts, the probability tree, experiments, and reevaluation. Use it when no cause is confirmed yet.",
+                "Sends the case back to the fact list for another round through facts, the probability tree, experiments, and reevaluation. Use it from the reevaluate phase when no cause is confirmed yet.",
                 "Starts another round of investigation." );
 
             Tool( "ChampionSignOff", "Champion Sign-Off",
-                "Records the Champion's sign-off on the confirmed explanation. It only works when the signed-in person is the Champion on the case.",
+                "Records the Champion's sign-off on the confirmed explanation. It works once a hypothesis is confirmed with a supporting experiment, for the person who is the Champion. When the Champion is someone outside Rock, the case owner records it for them.",
                 "Lets the Champion approve the confirmed explanation." );
 
             Tool( "CloseCase", "Close Case",

@@ -70,7 +70,7 @@ namespace com.yesuchum.RockDetective.Jobs
                     var mergeFields = Rock.Lava.LavaHelper.GetCommonMergeFields( null, person );
                     mergeFields.Add( "Person", person );
                     mergeFields.Add( "CaseNumber", caseFile.IdKey );
-                    mergeFields.Add( "CaseTitle", caseFile.Title );
+                    mergeFields.Add( "CaseTitle", caseFile.Title.EncodeHtml() );
                     mergeFields.Add( "FixHeldLink", $"{boardUrl}&FollowUp=Confirm" );
                     mergeFields.Add( "ReopenLink", $"{boardUrl}&FollowUp=Reopen" );
 

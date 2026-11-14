@@ -92,7 +92,7 @@ namespace com.yesuchum.RockDetective.Mcp
                 InputSchema = JObject.Parse( @"{
                     ""type"": ""object"",
                     ""properties"": {
-                        ""idKey"": { ""type"": ""string"", ""description"": ""The IdKey of the case file, as returned by list_cases."" }
+                        ""idKey"": { ""type"": ""string"", ""description"": ""The IdKey of the case file, from the list cases tool."" }
                     },
                     ""required"": [ ""idKey"" ]
                 }" ),
@@ -101,16 +101,19 @@ namespace com.yesuchum.RockDetective.Mcp
             new McpToolDefinition
             {
                 Name = "search_iis_logs",
-                Description = "Searches the IIS W3C log files on this Rock server for recent requests. Useful as evidence when investigating errors or slow pages. Results are capped and times are returned in the server's local time zone.",
+                Description = "Searches the IIS W3C log files on this Rock server for recent requests. Useful as evidence when investigating errors or slow pages. Narrow the search with a time range and filters; results are capped. Times are in the server's local time zone, and values of sensitive query string parameters are redacted.",
                 InputSchema = JObject.Parse( @"{
                     ""type"": ""object"",
                     ""properties"": {
-                        ""minutes"": { ""type"": ""integer"", ""description"": ""How many minutes back to search. Default 60, max 10080 (7 days)."" },
+                        ""minutes"": { ""type"": ""integer"", ""description"": ""How many minutes back to search. Default 60, max 10080 (7 days). Ignored when start is given."" },
+                        ""start"": { ""type"": ""string"", ""description"": ""Start of a time range in the server's local time, as ISO 8601, like 2026-11-08T08:00:00. Up to 30 days back."" },
+                        ""end"": { ""type"": ""string"", ""description"": ""End of the time range. Defaults to now. A range can span up to 7 days."" },
                         ""status"": { ""type"": ""integer"", ""description"": ""Only return requests with this HTTP status code (e.g. 500)."" },
                         ""pathContains"": { ""type"": ""string"", ""description"": ""Only return requests whose URL path contains this text (case-insensitive)."" },
                         ""method"": { ""type"": ""string"", ""description"": ""Only return requests with this HTTP method (e.g. POST)."" },
                         ""minTimeTakenMs"": { ""type"": ""integer"", ""description"": ""Only return requests that took at least this many milliseconds."" },
-                        ""limit"": { ""type"": ""integer"", ""description"": ""Maximum number of entries to return. Default 100, max 500."" }
+                        ""limit"": { ""type"": ""integer"", ""description"": ""Maximum number of entries to return, newest first. Default 50, max 500."" },
+                        ""includeUserAgent"": { ""type"": ""boolean"", ""description"": ""Also return each request's browser user agent. Defaults to false to keep results small."" }
                     }
                 }" ),
                 Handler = SearchIisLogs,
@@ -215,7 +218,10 @@ namespace com.yesuchum.RockDetective.Mcp
                 PathContains = arguments.Value<string>( "pathContains" ),
                 MethodEquals = arguments.Value<string>( "method" ),
                 MinTimeTakenMs = arguments.Value<int?>( "minTimeTakenMs" ),
-                MaxEntries = arguments.Value<int?>( "limit" ) ?? 100
+                MaxEntries = arguments.Value<int?>( "limit" ) ?? 50,
+                StartDateTime = CaseRules.ToRockLocalTime( arguments["start"], "start" ),
+                EndDateTime = CaseRules.ToRockLocalTime( arguments["end"], "end" ),
+                IsUserAgentIncluded = arguments.Value<bool?>( "includeUserAgent" ) ?? false
             };
 
             return ToJson( SearchIisLogs( options, person ) );
@@ -248,7 +254,7 @@ namespace com.yesuchum.RockDetective.Mcp
                     e.TimeTakenMs,
                     e.ClientIp,
                     e.UserName,
-                    e.UserAgent
+                    UserAgent = options.IsUserAgentIncluded ? e.UserAgent : null
                 } ).ToList()
             };
         }

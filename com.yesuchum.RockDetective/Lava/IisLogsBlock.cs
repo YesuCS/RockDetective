@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 
+using Rock;
 using Rock.Lava;
 using Rock.Model;
 
@@ -39,7 +40,10 @@ namespace com.yesuchum.RockDetective.Lava
                     PathContains = settings.GetStringOrNull( "path" ),
                     MethodEquals = settings.GetStringOrNull( "method" ),
                     MinTimeTakenMs = settings.GetIntegerOrNull( "mintimetaken" ),
-                    MaxEntries = settings.GetInteger( "limit", 100 )
+                    MaxEntries = settings.GetInteger( "limit", 100 ),
+                    StartDateTime = settings.GetStringOrNull( "start" ).AsDateTime(),
+                    EndDateTime = settings.GetStringOrNull( "end" ).AsDateTime(),
+                    IsUserAgentIncluded = true
                 };
 
                 var queryResult = IisLogReader.Query( options );
@@ -52,7 +56,7 @@ namespace com.yesuchum.RockDetective.Lava
             catch ( Exception ex )
             {
                 ExceptionLogService.LogException( ex );
-                result.Write( "IIS log entries are not available. " + ex.Message );
+                result.Write( "IIS log entries are not available. The error was written to the exception log." );
             }
         }
 

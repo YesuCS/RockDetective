@@ -132,9 +132,19 @@ namespace com.yesuchum.RockDetective.Rest
                 return StatusCode( HttpStatusCode.Unauthorized );
             }
 
+            if ( !Mcp.CaseAccess.IsInvestigator( person ) )
+            {
+                return StatusCode( HttpStatusCode.Forbidden );
+            }
+
             if ( bag == null || bag.Title.IsNullOrWhiteSpace() || bag.ProblemStatement.IsNullOrWhiteSpace() )
             {
                 return BadRequest( "Title and ProblemStatement are required." );
+            }
+
+            if ( bag.Title.Trim().Length > CaseRules.MaxTitleLength )
+            {
+                return BadRequest( CaseRules.TitleTooLongMessage );
             }
 
             int? categoryId = bag.CategoryGuid.HasValue ? CategoryCache.Get( bag.CategoryGuid.Value )?.Id : null;
@@ -280,6 +290,11 @@ namespace com.yesuchum.RockDetective.Rest
                     return BadRequest( "Text is required." );
                 }
 
+                if ( !CaseRules.IsSafeUrl( bag.Url ) )
+                {
+                    return BadRequest( CaseRules.UnsafeUrlMessage );
+                }
+
                 var entry = new Model.CaseEntry
                 {
                     CaseFileId = caseFile.Id,
@@ -326,12 +341,17 @@ namespace com.yesuchum.RockDetective.Rest
                     return BadRequest( "Name is required." );
                 }
 
+                if ( !CaseRules.IsProbabilityValid( bag.Probability ) )
+                {
+                    return BadRequest( CaseRules.ProbabilityMessage );
+                }
+
                 var hypothesis = new Model.Hypothesis
                 {
                     CaseFileId = caseFile.Id,
                     Name = bag.Name.Truncate( 300 ),
                     Description = bag.Description,
-                    Probability = Math.Max( 0, Math.Min( 100, bag.Probability ) ),
+                    Probability = bag.Probability,
                     Status = HypothesisStatus.Proposed,
                     ParentHypothesisId = Rock.Utility.IdHasher.Instance.GetId( bag.ParentHypothesisIdKey ?? string.Empty ),
                     CreatedDateTime = RockDateTime.Now,
@@ -379,7 +399,12 @@ namespace com.yesuchum.RockDetective.Rest
 
                 if ( bag?.Probability != null )
                 {
-                    hypothesis.Probability = Math.Max( 0, Math.Min( 100, bag.Probability.Value ) );
+                    if ( !CaseRules.IsProbabilityValid( bag.Probability.Value ) )
+                    {
+                        return BadRequest( CaseRules.ProbabilityMessage );
+                    }
+
+                    hypothesis.Probability = bag.Probability.Value;
                 }
 
                 if ( bag?.Status != null )

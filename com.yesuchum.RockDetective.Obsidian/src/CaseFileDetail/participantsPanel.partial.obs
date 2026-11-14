@@ -118,7 +118,7 @@
                     <i class="ti ti-paperclip"></i> {{ viewTarget.binaryFileName ?? "Attachment" }}
                 </a>
             </p>
-            <p v-if="viewTarget?.url" class="mb-1">
+            <p v-if="viewTarget?.url && /^https?:\/\//i.test(viewTarget.url)" class="mb-1">
                 <a :href="viewTarget.url" target="_blank" rel="noopener noreferrer"><i class="ti ti-link"></i> {{ viewTarget.url }}</a>
             </p>
             <template v-if="canEdit">

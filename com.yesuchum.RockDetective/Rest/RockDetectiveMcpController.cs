@@ -46,13 +46,25 @@ namespace com.yesuchum.RockDetective.Rest
                 return StatusCode( HttpStatusCode.Unauthorized );
             }
 
+            var mediaType = Request.Content?.Headers?.ContentType?.MediaType;
+
+            if ( !string.Equals( mediaType, "application/json", StringComparison.OrdinalIgnoreCase ) )
+            {
+                return StatusCode( HttpStatusCode.UnsupportedMediaType );
+            }
+
             var body = await Request.Content.ReadAsStringAsync();
 
             JObject request;
 
             try
             {
-                request = JObject.Parse( body );
+                request = JsonConvert.DeserializeObject<JObject>( body, new JsonSerializerSettings { DateParseHandling = DateParseHandling.None } );
+
+                if ( request == null )
+                {
+                    throw new JsonSerializationException( "Empty body." );
+                }
             }
             catch ( JsonException )
             {

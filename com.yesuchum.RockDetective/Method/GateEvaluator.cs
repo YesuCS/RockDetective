@@ -275,16 +275,15 @@ namespace com.yesuchum.RockDetective.Method
                 && e.Outcome == ExperimentOutcome.Supported );
 
             var state = aggregate.PhaseStates.GetState( CasePhase.Reevaluate );
-            var hasLoopedBack = state.Data.TryGetValue( PhaseStateKey.LoopBackCount, out var loops ) && loops != "0" && !string.IsNullOrWhiteSpace( loops );
 
             result.Requirements.Add( new GateRequirement
             {
                 Key = GateKey.ReevaluateConfirmed,
-                Description = "A hypothesis is confirmed with a supporting experiment, or the case has explicitly looped back for another round.",
-                IsMet = hasConfirmedWithSupport || hasLoopedBack
+                Description = "A hypothesis is confirmed with a supporting experiment. If none is, loop back for another round.",
+                IsMet = hasConfirmedWithSupport
             } );
 
-            if ( aggregate.HasChampion && confirmedIds.Any() )
+            if ( aggregate.HasChampion && hasConfirmedWithSupport )
             {
                 var hasSignOff = state.Data.TryGetValue( PhaseStateKey.ChampionSignOffDateTime, out var signOff ) && !string.IsNullOrWhiteSpace( signOff );
 

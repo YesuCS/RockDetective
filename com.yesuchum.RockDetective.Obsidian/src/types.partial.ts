@@ -320,6 +320,7 @@ export type CaseBoardInitBag = {
     canAdministrate: boolean;
     isOwner: boolean;
     isChampion: boolean;
+    canRecordChampionSignOff: boolean;
     isPhaseJumpingRestricted: boolean;
     categories: CategoryOptionBag[];
     errorMessage?: string | null;

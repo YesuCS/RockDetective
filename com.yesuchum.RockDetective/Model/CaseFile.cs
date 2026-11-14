@@ -222,7 +222,7 @@ namespace com.yesuchum.RockDetective.Model
                     {
                         var caseId = Id;
                         var aliasIds = detectiveContext.CaseParticipants
-                            .Where( p => p.CaseFileId == caseId && p.PersonAliasId.HasValue )
+                            .Where( p => p.CaseFileId == caseId && p.PersonAliasId.HasValue && p.Role != Enums.ParticipantRole.Witness )
                             .Select( p => p.PersonAliasId.Value )
                             .ToList();
 

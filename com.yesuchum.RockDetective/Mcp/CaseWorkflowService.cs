@@ -109,6 +109,8 @@ namespace com.yesuchum.RockDetective.Mcp
                 throw new McpToolException( "A title and a problem statement are required." );
             }
 
+            RequireTitleLength( title );
+
             var categoryId = ResolveCategoryId( category );
             var caseMode = ParseEnum( mode, CaseMode.Simple, "mode" );
 
@@ -155,6 +157,7 @@ namespace com.yesuchum.RockDetective.Mcp
             {
                 if ( title.IsNotNullOrWhiteSpace() )
                 {
+                    RequireTitleLength( title );
                     caseFile.Title = title.Trim().Truncate( 200 );
                 }
 
@@ -248,6 +251,11 @@ namespace com.yesuchum.RockDetective.Mcp
                     throw new McpToolException( "A reason is required to waive the Champion." );
                 }
 
+                if ( detectiveContext.CaseParticipants.Any( p => p.CaseFileId == caseFile.Id && p.Role == ParticipantRole.Champion ) )
+                {
+                    throw new McpToolException( "This case already has a Champion, so waiving would change nothing. The Champion signs off at the reevaluate phase; when they are outside Rock, the case owner records their sign-off." );
+                }
+
                 var states = CaseMapper.GetPhaseStates( caseFile );
                 var state = states.GetState( CasePhase.DefineTeam );
                 state.Data[PhaseStateKey.ChampionWaived] = true.ToString();
@@ -275,6 +283,8 @@ namespace com.yesuchum.RockDetective.Mcp
                     throw new McpToolException( "That participant was not found on this case." );
                 }
 
+                RequireSafeUrl( url );
+
                 var caseStatement = new Model.CaseStatement
                 {
                     CaseFileId = caseFile.Id,
@@ -296,6 +306,7 @@ namespace com.yesuchum.RockDetective.Mcp
                         CaseFileId = caseFile.Id,
                         EntryType = CaseEntryType.Fact,
                         Text = statement.Trim(),
+                        Url = url,
                         Source = CaseEntrySource.Witness,
                         SourceParticipantId = participant.Id,
                         IsCorroborated = isCorroborated,
@@ -323,6 +334,8 @@ namespace com.yesuchum.RockDetective.Mcp
                 {
                     throw new McpToolException( "The entry text is required." );
                 }
+
+                RequireSafeUrl( url );
 
                 var type = ParseEnum( entryType, CaseEntryType.Fact, "entryType" );
                 TimelineEventType? eventType = null;
@@ -370,6 +383,8 @@ namespace com.yesuchum.RockDetective.Mcp
                     throw new McpToolException( "A hypothesis name is required." );
                 }
 
+                RequireProbability( probability );
+
                 int? parentId = null;
 
                 if ( parentHypothesisIdKey.IsNotNullOrWhiteSpace() )
@@ -382,7 +397,7 @@ namespace com.yesuchum.RockDetective.Mcp
                     CaseFileId = caseFile.Id,
                     Name = name.Trim().Truncate( 300 ),
                     Description = description,
-                    Probability = Math.Max( 0, Math.Min( 100, probability ) ),
+                    Probability = probability,
                     Status = HypothesisStatus.Proposed,
                     ParentHypothesisId = parentId,
                     CreatedDateTime = RockDateTime.Now,
@@ -406,7 +421,8 @@ namespace com.yesuchum.RockDetective.Mcp
 
                 if ( probability.HasValue )
                 {
-                    hypothesis.Probability = Math.Max( 0, Math.Min( 100, probability.Value ) );
+                    RequireProbability( probability.Value );
+                    hypothesis.Probability = probability.Value;
                 }
 
                 if ( status.IsNotNullOrWhiteSpace() )
@@ -587,6 +603,8 @@ namespace com.yesuchum.RockDetective.Mcp
                 throw new McpToolException( "Please give a statement to submit." );
             }
 
+            RequireSafeUrl( url );
+
             return WithMyStatementRequest( statementIdKey, person, ( detectiveContext, request ) =>
             {
                 request.Statement = statement.Trim();
@@ -747,6 +765,11 @@ namespace com.yesuchum.RockDetective.Mcp
         {
             return WithEditableCase( caseIdKey, person, ( detectiveContext, caseFile ) =>
             {
+                if ( caseFile.CurrentPhase != CasePhase.Reevaluate )
+                {
+                    throw new McpToolException( "A case loops back from the reevaluate phase, after its experiments leave no confirmed cause. Keep working the current phase." );
+                }
+
                 var states = CaseMapper.GetPhaseStates( caseFile );
                 var reevaluateState = states.GetState( CasePhase.Reevaluate );
 
@@ -759,6 +782,7 @@ namespace com.yesuchum.RockDetective.Mcp
 
                 reevaluateState.Data[PhaseStateKey.LoopBackCount] = ( loopCount + 1 ).ToString();
                 reevaluateState.Data[PhaseStateKey.LastLoopBackDateTime] = RockDateTime.Now.ToString( "s" );
+                CaseRules.ClearChampionSignOff( states );
 
                 foreach ( var loopPhase in new[] { CasePhase.FactList, CasePhase.ProbabilityTree, CasePhase.Experiments, CasePhase.Reevaluate } )
                 {
@@ -784,23 +808,22 @@ namespace com.yesuchum.RockDetective.Mcp
             using ( var detectiveContext = new RockDetectiveContext() )
             {
                 var caseFile = GetCase( detectiveContext, caseIdKey );
-                var aliasIds = person.Aliases.Select( a => a.Id ).ToList();
 
-                var isChampion = detectiveContext.CaseParticipants.Any( p =>
-                    p.CaseFileId == caseFile.Id
-                    && p.Role == ParticipantRole.Champion
-                    && p.PersonAliasId.HasValue
-                    && aliasIds.Contains( p.PersonAliasId.Value ) );
-
-                if ( !isChampion )
+                if ( caseFile.Status == CaseStatus.Closed || caseFile.Status == CaseStatus.Abandoned )
                 {
-                    throw new McpToolException( "Only the person assigned as Champion on this case can sign off. Ask them to sign off on the Case Board." );
+                    throw new McpToolException( "This case is closed or abandoned, so it cannot be signed off." );
+                }
+
+                var canEditCase = person.Aliases.Any( a => a.Id == caseFile.OwnerPersonAliasId ) || caseFile.IsAuthorized( Rock.Security.Authorization.EDIT, person );
+                var refusal = CaseRules.GetChampionSignOffRefusal( detectiveContext, caseFile, person, canEditCase );
+
+                if ( refusal != null )
+                {
+                    throw new McpToolException( refusal );
                 }
 
                 var states = CaseMapper.GetPhaseStates( caseFile );
-                var state = states.GetState( CasePhase.Reevaluate );
-                state.Data[PhaseStateKey.ChampionSignOffDateTime] = RockDateTime.Now.ToString( "s" );
-                state.Data[PhaseStateKey.ChampionSignOffPersonAliasId] = person.PrimaryAliasId.ToString();
+                CaseRules.RecordChampionSignOff( states, person );
                 CaseMapper.SetPhaseStates( caseFile, states );
 
                 Stamp( caseFile, person );
@@ -919,6 +942,30 @@ namespace com.yesuchum.RockDetective.Mcp
                 detectiveContext.SaveChanges();
 
                 return BuildProgress( detectiveContext, caseFile, created?.Name, created?.IdKey );
+            }
+        }
+
+        private static void RequireSafeUrl( string url )
+        {
+            if ( !CaseRules.IsSafeUrl( url ) )
+            {
+                throw new McpToolException( CaseRules.UnsafeUrlMessage );
+            }
+        }
+
+        private static void RequireTitleLength( string title )
+        {
+            if ( title.Trim().Length > CaseRules.MaxTitleLength )
+            {
+                throw new McpToolException( CaseRules.TitleTooLongMessage );
+            }
+        }
+
+        private static void RequireProbability( int probability )
+        {
+            if ( !CaseRules.IsProbabilityValid( probability ) )
+            {
+                throw new McpToolException( CaseRules.ProbabilityMessage );
             }
         }
 

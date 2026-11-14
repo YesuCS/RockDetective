@@ -118,7 +118,7 @@ namespace com.yesuchum.RockDetective.Method
             [GateKey.FactsMinimum] = "At least {count} {fact#} recorded.",
             [GateKey.HypothesesMinimum] = "At least {count} root {hypothesis#} with a probability estimate recorded.",
             [GateKey.ExperimentsMinimum] = "At least {count} {experiment#} with a recorded outcome and changes reverted or justified.",
-            [GateKey.ReevaluateConfirmed] = "A {hypothesis} is confirmed with a supporting {experiment}, or the {caseFile} has explicitly looped back for another round.",
+            [GateKey.ReevaluateConfirmed] = "A {hypothesis} is confirmed with a supporting {experiment}. If none is, loop back for another round.",
             [GateKey.ReevaluateChampionSignOff] = "The {Champion} has signed off on the confirmed explanation.",
             [GateKey.PostmortemSummary] = "Problem summary is written.",
             [GateKey.PostmortemImpact] = "Impact is described.",

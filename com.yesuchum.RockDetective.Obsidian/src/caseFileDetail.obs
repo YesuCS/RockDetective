@@ -150,8 +150,8 @@
                     <RockButton v-if="activePhase === 8" :btnType="BtnType.Default" :btnSize="BtnSize.Small" @click="onLoopBack">
                         <i class="ti ti-refresh mr-1"></i>Loop Back to {{ tp("Fact") }}
                     </RockButton>
-                    <RockButton v-if="activePhase === 8 && config.isChampion && !hasChampionSignOff" :btnType="BtnType.Success" :btnSize="BtnSize.Small" @click="onChampionSignOff">
-                        <i class="ti ti-rosette-discount-check mr-1"></i>{{ t("Champion") }} Sign-Off
+                    <RockButton v-if="activePhase === 8 && config.canRecordChampionSignOff && !hasChampionSignOff" :btnType="BtnType.Success" :btnSize="BtnSize.Small" @click="onChampionSignOff">
+                        <i class="ti ti-rosette-discount-check mr-1"></i>{{ config.isChampion ? "" : "Record " }}{{ t("Champion") }} Sign-Off
                     </RockButton>
                     <span v-if="activePhase === 8 && hasChampionSignOff" class="label label-success align-self-center">
                         {{ t("Champion") }} signed off

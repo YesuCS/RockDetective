@@ -43,7 +43,7 @@ namespace com.yesuchum.RockDetective.Data
                     .Select( e => e.TimelineEventType )
                     .ToList(),
                 FactCount = entries.Count( e => e.EntryType == CaseEntryType.Fact ),
-                RootHypothesesWithProbabilityCount = hypotheses.Count( h => !h.ParentHypothesisId.HasValue && h.Probability > 0 ),
+                RootHypothesesWithProbabilityCount = hypotheses.Count( h => !h.ParentHypothesisId.HasValue && h.Probability > 0 && h.Status != HypothesisStatus.RuledOut ),
                 Experiments = experiments.Select( e => new ExperimentSnapshot
                 {
                     Id = e.Id,
@@ -143,7 +143,7 @@ namespace com.yesuchum.RockDetective.Data
                 TimelineEventType = entry.TimelineEventType.HasValue ? ( int? ) entry.TimelineEventType.Value : null,
                 BinaryFileGuid = binaryFileGuid,
                 BinaryFileName = binaryFileName,
-                Url = entry.Url,
+                Url = CaseRules.SafeUrlOrNull( entry.Url ),
                 Source = ( int ) entry.Source,
                 SourceParticipantIdKey = entry.SourceParticipantId.HasValue ? Rock.Utility.IdHasher.Instance.GetHash( entry.SourceParticipantId.Value ) : null,
                 SourceParticipantName = entry.SourceParticipantId.HasValue && participantNames.ContainsKey( entry.SourceParticipantId.Value )
@@ -245,7 +245,7 @@ namespace com.yesuchum.RockDetective.Data
                 Statement = statement.Statement,
                 BinaryFileGuid = binaryFileGuid,
                 BinaryFileName = binaryFileName,
-                Url = statement.Url,
+                Url = CaseRules.SafeUrlOrNull( statement.Url ),
                 IsOverdue = isOverdue
             };
         }

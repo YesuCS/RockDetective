@@ -3,11 +3,13 @@ using System.Collections.Generic;
 
 using Newtonsoft.Json.Linq;
 
+using com.yesuchum.RockDetective.Data;
+
 namespace com.yesuchum.RockDetective.Mcp
 {
     public static partial class McpToolService
     {
-        private const string CaseIdKeyProperty = @"""caseIdKey"": { ""type"": ""string"", ""description"": ""The IdKey of the case file, as returned by list_cases or create_case."" }";
+        private const string CaseIdKeyProperty = @"""caseIdKey"": { ""type"": ""string"", ""description"": ""The IdKey of the case file, from the list cases tool or the create case tool."" }";
 
         private const string ProgressNote = " Returns where the case stands: its current phase, that phase's guidance and checklist, and the next step.";
 
@@ -47,7 +49,7 @@ namespace com.yesuchum.RockDetective.Mcp
             yield return Tool(
                 "submit_statement",
                 "For a witness: submits the signed-in person's answer to a statement request that was addressed to them. It needs no other access to the case.",
-                @"""statementIdKey"": { ""type"": ""string"", ""description"": ""The IdKey of the request, from list_my_statement_requests."" },
+                @"""statementIdKey"": { ""type"": ""string"", ""description"": ""The IdKey of the request, from the list my statement requests tool."" },
                   ""statement"": { ""type"": ""string"", ""description"": ""What the person saw or knows, in their own words."" },
                   ""url"": { ""type"": ""string"", ""description"": ""An optional link that goes with the statement."" }",
                 "statementIdKey,statement",
@@ -57,7 +59,7 @@ namespace com.yesuchum.RockDetective.Mcp
             yield return Tool(
                 "decline_statement",
                 "For a witness: declines a statement request that was addressed to the signed-in person, with an optional reason.",
-                @"""statementIdKey"": { ""type"": ""string"", ""description"": ""The IdKey of the request, from list_my_statement_requests."" },
+                @"""statementIdKey"": { ""type"": ""string"", ""description"": ""The IdKey of the request, from the list my statement requests tool."" },
                   ""reason"": { ""type"": ""string"" }",
                 "statementIdKey",
                 ( a, p ) => CaseWorkflowService.DeclineStatement( a.Value<string>( "statementIdKey" ), a.Value<string>( "reason" ), p ),
@@ -75,7 +77,7 @@ namespace com.yesuchum.RockDetective.Mcp
                 "Opens a new case file. The signed-in person becomes the owner. Simple mode starts at the fact list; Advanced mode runs all nine phases." + ProgressNote,
                 @"""title"": { ""type"": ""string"", ""description"": ""A short handle for the case."" },
                   ""problemStatement"": { ""type"": ""string"", ""description"": ""One clear, concise statement of the problem with nothing unverified and nothing that is not germane."" },
-                  ""category"": { ""type"": ""string"", ""description"": ""The category name or guid, from list_categories."" },
+                  ""category"": { ""type"": ""string"", ""description"": ""The category name or guid, from the list categories tool."" },
                   ""mode"": { ""type"": ""string"", ""enum"": [ ""Simple"", ""Advanced"" ], ""description"": ""Simple for easy problems, Advanced for difficult ones. Defaults to Simple."" },
                   ""isProblemStatementVerified"": { ""type"": ""boolean"", ""description"": ""True only if every detail in the problem statement has been verified and all of it is germane. Advanced cases need this to complete the problem definition phase."" }",
                 "title,problemStatement,category",
@@ -105,7 +107,7 @@ namespace com.yesuchum.RockDetective.Mcp
 
             yield return Tool(
                 "waive_champion",
-                "Records that this case will go without a Champion, with the reason. Use it for problems small enough not to need an independent sanity check." + ProgressNote,
+                "Records that this case will go without a Champion, with the reason. Use it for problems small enough not to need an independent sanity check. It is refused when the case already has a Champion." + ProgressNote,
                 CaseIdKeyProperty + @",
                   ""reason"": { ""type"": ""string"", ""description"": ""Why a Champion is not needed."" }",
                 "caseIdKey,reason",
@@ -115,7 +117,7 @@ namespace com.yesuchum.RockDetective.Mcp
                 "record_statement",
                 "Records what a participant or witness said. Optionally adds it to the fact list; statements are never fully trusted, so only mark a fact corroborated when evidence backs it." + ProgressNote,
                 CaseIdKeyProperty + @",
-                  ""participantIdKey"": { ""type"": ""string"", ""description"": ""The IdKey of the participant, from add_participant or get_case."" },
+                  ""participantIdKey"": { ""type"": ""string"", ""description"": ""The IdKey of the participant, from the add participant tool or the get case tool."" },
                   ""statement"": { ""type"": ""string"" },
                   ""url"": { ""type"": ""string"", ""description"": ""An optional link that goes with the statement."" },
                   ""addToFacts"": { ""type"": ""boolean"", ""description"": ""Also add the statement to the fact list. Defaults to false."" },
@@ -125,16 +127,16 @@ namespace com.yesuchum.RockDetective.Mcp
 
             yield return Tool(
                 "add_entry",
-                "Adds a fact, a timeline event, or a piece of evidence to the case. Facts must be specific, correct, and pertinent. The entry is marked as added by an AI assistant." + ProgressNote,
+                "Adds a fact, a timeline event, or a piece of evidence to the case. Facts must be specific, correct, and pertinent. Only facts count toward the fact list checklist; evidence and timeline events do not. The entry is marked as added by an AI assistant." + ProgressNote,
                 CaseIdKeyProperty + @",
                   ""entryType"": { ""type"": ""string"", ""enum"": [ ""Fact"", ""TimelineEvent"", ""Evidence"" ], ""description"": ""Defaults to Fact."" },
                   ""text"": { ""type"": ""string"" },
-                  ""eventDateTime"": { ""type"": ""string"", ""description"": ""When a timeline event happened, as an ISO 8601 date and time. Required for timeline events."" },
+                  ""eventDateTime"": { ""type"": ""string"", ""description"": ""When a timeline event happened, as an ISO 8601 date and time. Without an offset it is read as the church's local time. Required for timeline events."" },
                   ""timelineEventType"": { ""type"": ""string"", ""enum"": [ ""ProblemStart"", ""LastKnownGood"", ""Change"", ""Activity"", ""Other"" ], ""description"": ""For timeline events. The timeline needs one ProblemStart."" },
-                  ""url"": { ""type"": ""string"", ""description"": ""An optional link, mostly for evidence."" },
+                  ""url"": { ""type"": ""string"", ""description"": ""An optional link, mostly for evidence. It has to start with http:// or https://."" },
                   ""isCorroborated"": { ""type"": ""boolean"", ""description"": ""For facts: true only when evidence backs the fact. Defaults to false."" }",
                 "caseIdKey,text",
-                ( a, p ) => CaseWorkflowService.AddEntry( a.Value<string>( "caseIdKey" ), a.Value<string>( "entryType" ), a.Value<string>( "text" ), a.Value<DateTime?>( "eventDateTime" ), a.Value<string>( "timelineEventType" ), a.Value<string>( "url" ), a.Value<bool?>( "isCorroborated" ) ?? false, p ) );
+                ( a, p ) => CaseWorkflowService.AddEntry( a.Value<string>( "caseIdKey" ), a.Value<string>( "entryType" ), a.Value<string>( "text" ), CaseRules.ToRockLocalTime( a["eventDateTime"], "eventDateTime" ), a.Value<string>( "timelineEventType" ), a.Value<string>( "url" ), a.Value<bool?>( "isCorroborated" ) ?? false, p ) );
 
             yield return Tool(
                 "add_hypothesis",
@@ -201,14 +203,14 @@ namespace com.yesuchum.RockDetective.Mcp
 
             yield return Tool(
                 "loop_back",
-                "Sends the case back to the fact list for another round through facts, the probability tree, experiments, and reevaluation. Use it when no cause is confirmed yet." + ProgressNote,
+                "Sends the case back to the fact list for another round through facts, the probability tree, experiments, and reevaluation. Use it from the reevaluate phase when no cause is confirmed yet." + ProgressNote,
                 CaseIdKeyProperty,
                 "caseIdKey",
                 ( a, p ) => CaseWorkflowService.LoopBack( a.Value<string>( "caseIdKey" ), p ) );
 
             yield return Tool(
                 "champion_sign_off",
-                "Records the Champion's sign-off on the confirmed explanation. It only works when the signed-in person is the Champion on the case." + ProgressNote,
+                "Records the Champion's sign-off on the confirmed explanation. It works once a hypothesis is confirmed with a supporting experiment, for the person who is the Champion. When the Champion is someone outside Rock, the case owner records it for them." + ProgressNote,
                 CaseIdKeyProperty,
                 "caseIdKey",
                 ( a, p ) => CaseWorkflowService.ChampionSignOff( a.Value<string>( "caseIdKey" ), p ) );
@@ -225,7 +227,7 @@ namespace com.yesuchum.RockDetective.Mcp
                   ""actionItems"": { ""type"": ""string"", ""description"": ""Follow-up work that remains."" },
                   ""followUpDate"": { ""type"": ""string"", ""description"": ""Optional ISO 8601 date on which the owner is asked whether the fix held."" }",
                 "caseIdKey,impactSummary,solutionSummary,contributingFactors,lessonsLearned,preventionMeasures,actionItems",
-                ( a, p ) => CaseWorkflowService.CloseCase( a.Value<string>( "caseIdKey" ), a.Value<string>( "impactSummary" ), a.Value<string>( "solutionSummary" ), a.Value<string>( "contributingFactors" ), a.Value<string>( "lessonsLearned" ), a.Value<string>( "preventionMeasures" ), a.Value<string>( "actionItems" ), a.Value<DateTime?>( "followUpDate" ), p ) );
+                ( a, p ) => CaseWorkflowService.CloseCase( a.Value<string>( "caseIdKey" ), a.Value<string>( "impactSummary" ), a.Value<string>( "solutionSummary" ), a.Value<string>( "contributingFactors" ), a.Value<string>( "lessonsLearned" ), a.Value<string>( "preventionMeasures" ), a.Value<string>( "actionItems" ), CaseRules.ToRockLocalTime( a["followUpDate"], "followUpDate" ), p ) );
         }
     }
 }
