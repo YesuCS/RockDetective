@@ -65,7 +65,7 @@ The top of the board reads **Name | Status**, with the category and mode at the 
 
 ### Phases
 
-The stepper across the top shows the phases. Green is complete and the highlighted one is where you are. In Simple mode, Define the Team and Timeline stay out of the stepper unless you started them. Phases 5 through 8 (Fact List, Probability Tree, Experiments, Reevaluate) loop; keep cycling through them until a cause is confirmed beyond a reasonable doubt.
+The stepper across the top shows the phases in three groups: **Set up** (phases 1 to 4), **Investigate** (5 to 8), and **Close** (9). Each phase is a small numbered button. Green with a check is complete, and the highlighted one, the only one that shows its name, is where you are. Hover over any number to see that phase's name and what it's for, and click it to go there. In Simple mode, Define the Team and Timeline stay out of the stepper unless you started them. The Investigate phases (Fact List, Probability Tree, Experiments, Reevaluate) loop; keep cycling through them until a cause is confirmed beyond a reasonable doubt.
 
 On a phone (screens under 768 pixels wide) the stepper becomes a dropdown. Completed phases carry a check mark, and phases that Restrict Phase Jumping has locked are greyed out.
 

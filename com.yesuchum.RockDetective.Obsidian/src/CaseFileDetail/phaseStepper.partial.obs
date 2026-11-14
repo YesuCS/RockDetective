@@ -9,23 +9,26 @@
         </select>
     </div>
 
-    <div class="rd-stepper d-flex flex-wrap align-items-center mb-3" style="gap: 4px;">
-        <template v-for="definition in visibleDefinitions" :key="definition.phase">
-            <button type="button"
-                    class="btn btn-xs"
-                    :class="buttonClass(definition.phase)"
-                    :title="isPhaseDisabled(definition.phase) ? 'Complete the current phase to unlock this step.' : definition.guidance"
-                    :disabled="isPhaseDisabled(definition.phase)"
-                    @click="$emit('phaseSelected', definition.phase)">
-                <i v-if="progressOf(definition.phase) === 2" class="ti ti-check mr-1"></i>
-                <i v-else-if="progressOf(definition.phase) === 3" class="ti ti-arrow-forward mr-1"></i>
-                {{ definition.phase }}. {{ definition.name }}
-            </button>
-            <i v-if="definition.phase < 9 && nextVisiblePhase(definition.phase)" class="ti ti-chevron-right text-muted"></i>
-        </template>
-    </div>
-    <div v-if="showLoopHint" class="text-muted mb-3" style="font-size: 13px;">
-        <i class="ti ti-refresh mr-1"></i>Phases 5 through 8 loop: keep cycling through {{ definitions.filter(d => d.isLoopPhase).map(d => d.name).join(", ") }} until a cause is confirmed beyond a reasonable doubt.
+    <div class="rd-stepper d-flex flex-wrap align-items-end mb-3" style="gap: 8px 28px;">
+        <div v-for="stage in stages" :key="stage.key">
+            <div class="text-muted mb-1" style="font-size: 12px;" :title="stage.hint">
+                <i v-if="stage.isLoop" class="ti ti-refresh mr-1"></i>{{ stage.label }}
+            </div>
+            <div class="d-flex align-items-center" style="gap: 4px;">
+                <button v-for="definition in stage.definitions"
+                        :key="definition.phase"
+                        type="button"
+                        class="btn btn-xs"
+                        :class="buttonClass(definition.phase)"
+                        :title="chipTitle(definition)"
+                        :disabled="isPhaseDisabled(definition.phase)"
+                        @click="$emit('phaseSelected', definition.phase)">
+                    <i v-if="progressOf(definition.phase) === 2 && definition.phase !== currentPhase" class="ti ti-check mr-1"></i>
+                    <i v-else-if="progressOf(definition.phase) === 3" class="ti ti-arrow-forward mr-1"></i>
+                    {{ definition.phase }}<template v-if="definition.phase === currentPhase">. {{ definition.name }}</template>
+                </button>
+            </div>
+        </div>
     </div>
 </template>
 
@@ -71,7 +74,27 @@
     const visibleDefinitions = computed(() =>
         props.definitions.filter(d => !props.isSimpleMode || !d.isAutoSkippedInSimpleMode || progressOf(d.phase) === 1 || progressOf(d.phase) === 2));
 
-    const showLoopHint = computed(() => props.currentPhase >= 5 && props.currentPhase <= 8);
+    type Stage = { key: string; label: string; hint: string; isLoop: boolean; definitions: PhaseDefinitionBag[] };
+
+    const stages = computed<Stage[]>(() => {
+        const loopNames = props.definitions.filter(d => d.isLoopPhase).map(d => d.name).join(", ");
+
+        const all: Stage[] = [
+            { key: "setup", label: "Set up", hint: "Get the team, the problem, and the timeline straight before investigating.", isLoop: false, definitions: visibleDefinitions.value.filter(d => d.phase < 5) },
+            { key: "investigate", label: "Investigate", hint: `These phases loop: keep cycling through ${loopNames} until a cause is confirmed beyond a reasonable doubt.`, isLoop: true, definitions: visibleDefinitions.value.filter(d => d.phase >= 5 && d.phase <= 8) },
+            { key: "close", label: "Close", hint: "Write up what happened and how to prevent it.", isLoop: false, definitions: visibleDefinitions.value.filter(d => d.phase > 8) }
+        ];
+
+        return all.filter(s => s.definitions.length > 0);
+    });
+
+    function chipTitle(definition: PhaseDefinitionBag): string {
+        if (isPhaseDisabled(definition.phase)) {
+            return `${definition.phase}. ${definition.name}: complete the current phase to unlock this step.`;
+        }
+
+        return `${definition.phase}. ${definition.name}: ${definition.guidance}`;
+    }
 
     function progressOf(phase: number): number {
         return props.phaseStates.find(s => s.phase === phase)?.progress ?? 0;
@@ -79,10 +102,6 @@
 
     function isPhaseDisabled(phase: number): boolean {
         return props.isJumpRestricted && phase !== props.currentPhase && progressOf(phase) === 0;
-    }
-
-    function nextVisiblePhase(phase: number): boolean {
-        return visibleDefinitions.value.some(d => d.phase > phase);
     }
 
     function buttonClass(phase: number): string {
