@@ -6,26 +6,28 @@ namespace com.yesuchum.RockDetective.ViewModels
     {
         public bool CanEdit { get; set; }
 
-        public List<SkillWordingItemBag> Items { get; set; } = new List<SkillWordingItemBag>();
+        public string SkillUrl { get; set; }
 
-        public Dictionary<string, string> Values { get; set; } = new Dictionary<string, string>();
+        public SkillStatusBag Status { get; set; } = new SkillStatusBag();
     }
 
-    public class SkillWordingItemBag
+    public class SkillStatusBag
     {
-        public string Key { get; set; }
+        public List<SkillToolStatusBag> Tools { get; set; } = new List<SkillToolStatusBag>();
 
-        public string Group { get; set; }
-
-        public string Label { get; set; }
-
-        public string Default { get; set; }
+        public int AddedToolCount { get; set; }
     }
 
-    public class SkillSettingsSaveResultBag
+    public class SkillToolStatusBag
     {
-        public Dictionary<string, string> Values { get; set; } = new Dictionary<string, string>();
+        public string Guid { get; set; }
 
-        public bool IsAppliedToRockAgents { get; set; }
+        public string Name { get; set; }
+
+        public string StandardName { get; set; }
+
+        public string Description { get; set; }
+
+        public string State { get; set; }
     }
 }

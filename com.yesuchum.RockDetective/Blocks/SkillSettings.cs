@@ -1,13 +1,12 @@
 using System;
-using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
-using System.Reflection;
 
 using Rock;
 using Rock.Attribute;
 using Rock.Blocks;
 using Rock.Data;
+using Rock.Web.Cache;
 
 using com.yesuchum.RockDetective.Agent;
 using com.yesuchum.RockDetective.ViewModels;
@@ -16,7 +15,7 @@ namespace com.yesuchum.RockDetective.Blocks
 {
     [DisplayName( "Skill Settings" )]
     [Category( "Rock Detective" )]
-    [Description( "Lets an administrator edit the wording an AI assistant reads for the Rock Detective skill and each of its tools. Only people with Administrate on the block can see or change it." )]
+    [Description( "Shows the tools in the Rock Detective AI skill, which ones have been edited, and lets an administrator put them back to standard. Only people with Administrate on the block can see or change it." )]
     [IconCssClass( "ti ti-robot" )]
     [SupportedSiteTypes( Rock.Model.SiteType.Web )]
 
@@ -24,7 +23,7 @@ namespace com.yesuchum.RockDetective.Blocks
     [Rock.SystemGuid.BlockTypeGuid( SystemGuid.BlockType.SKILL_SETTINGS )]
     public class SkillSettings : RockBlockType
     {
-        private const string SkillGuid = "2C5BE126-3BEC-4B15-A2F4-80FD685ABE84";
+        private const string AiSkillDetailBlockType = "B8B8CEE9-C058-45D3-A1C7-647CAD96FD1E";
 
         public override string ObsidianFileUrl => "~/Plugins/com_yesuchum/RockDetective/skillSettings.obs";
 
@@ -43,88 +42,90 @@ namespace com.yesuchum.RockDetective.Blocks
             return new SkillSettingsInitBag
             {
                 CanEdit = true,
-                Items = SkillWording.Items.Select( i => new SkillWordingItemBag { Key = i.Key, Group = i.Group, Label = i.Label, Default = i.Default } ).ToList(),
-                Values = SkillWording.GetOverrides()
+                SkillUrl = GetSkillUrl(),
+                Status = GetStatus()
             };
         }
 
         [BlockAction]
-        public BlockActionResult SaveWording( Dictionary<string, string> values )
+        public BlockActionResult RestoreTool( string toolGuid )
         {
             if ( !IsAdministrator() )
             {
-                return ActionForbidden( "You are not authorized to change the skill wording." );
+                return ActionForbidden( "You are not authorized to change the skill." );
             }
 
-            SkillWording.SaveOverrides( values );
-
-            var isApplied = ApplyToRockAgents();
-
-            return ActionOk( new SkillSettingsSaveResultBag
+            if ( !SkillSeeder.RestoreTool( toolGuid.AsGuid() ) )
             {
-                Values = SkillWording.GetOverrides(),
-                IsAppliedToRockAgents = isApplied
-            } );
+                return ActionBadRequest( "That is not one of the standard Rock Detective tools." );
+            }
+
+            return ActionOk( GetStatus() );
         }
 
-        private static bool ApplyToRockAgents()
+        [BlockAction]
+        public BlockActionResult RestoreAll()
+        {
+            if ( !IsAdministrator() )
+            {
+                return ActionForbidden( "You are not authorized to change the skill." );
+            }
+
+            SkillSeeder.RestoreAll();
+
+            return ActionOk( GetStatus() );
+        }
+
+        private static SkillStatusBag GetStatus()
+        {
+            var statuses = SkillSeeder.GetStatus();
+
+            return new SkillStatusBag
+            {
+                AddedToolCount = SkillSeeder.CountAddedTools(),
+                Tools = SkillToolCatalog.Defaults.Select( toolDefault =>
+                {
+                    var status = statuses.First( s => s.Guid == toolDefault.Guid );
+
+                    return new SkillToolStatusBag
+                    {
+                        Guid = toolDefault.Guid.ToString(),
+                        Name = status.Name,
+                        StandardName = toolDefault.Name,
+                        Description = toolDefault.Description,
+                        State = status.State.ToString()
+                    };
+                } ).ToList()
+            };
+        }
+
+        private string GetSkillUrl()
         {
             try
             {
                 using ( var rockContext = new RockContext() )
                 {
-                    var skill = new Rock.Model.AISkillService( rockContext ).Get( SkillGuid.AsGuid() );
+                    var skill = new Rock.Model.AISkillService( rockContext ).Get( SkillToolCatalog.SkillGuid.AsGuid() );
+                    var blockTypeId = BlockTypeCache.Get( AiSkillDetailBlockType.AsGuid() )?.Id;
 
-                    if ( skill == null )
+                    if ( skill == null || !blockTypeId.HasValue )
                     {
-                        return false;
+                        return null;
                     }
 
-                    skill.Description = SkillWording.Get( "Skill.Description" );
-                    skill.SetAdditionalSettings( "SkillInstructionSettings", new
-                    {
-                        Purposes = new List<string> { SkillWording.Get( "Skill.Purpose" ) },
-                        Usages = new List<string> { SkillWording.Get( "Skill.Usage" ) },
-                        Guardrails = new List<string> { SkillWording.Get( "Skill.Guardrails" ) }
-                    } );
+                    var pageId = new Rock.Model.BlockService( rockContext ).Queryable()
+                        .Where( b => b.BlockTypeId == blockTypeId.Value && b.PageId.HasValue )
+                        .Select( b => b.PageId )
+                        .FirstOrDefault();
 
-                    var methodsByToolGuid = typeof( RockDetectiveSkill )
-                        .GetMethods( BindingFlags.Public | BindingFlags.Instance )
-                        .Select( m => new { Method = m, Guid = m.GetCustomAttribute<Rock.SystemGuid.AgentToolGuidAttribute>()?.Guid } )
-                        .Where( m => m.Guid.HasValue )
-                        .ToDictionary( m => m.Guid.Value, m => m.Method.Name );
-
-                    var tools = new Rock.Model.AISkillToolService( rockContext ).Queryable().Where( t => t.AISkillId == skill.Id ).ToList();
-
-                    foreach ( var tool in tools )
-                    {
-                        if ( !methodsByToolGuid.TryGetValue( tool.Guid, out var methodName ) )
-                        {
-                            continue;
-                        }
-
-                        tool.Description = SkillWording.Get( methodName + ".Description" );
-                        tool.SetAdditionalSettings( "ToolInstructionSettings", new
-                        {
-                            Purposes = new List<string> { SkillWording.Get( methodName + ".Purpose" ) },
-                            ReturnDescription = ( string ) null,
-                            Usages = new List<string> { SkillWording.Get( methodName + ".Description" ) },
-                            Guardrails = new List<string>(),
-                            Prerequisites = new List<string>(),
-                            Examples = new List<string>()
-                        } );
-                    }
-
-                    rockContext.SaveChanges();
+                    return pageId.HasValue ? RequestContext.ResolveRockUrl( $"~/page/{pageId.Value}?AISkillId={skill.IdKey}" ) : null;
                 }
-
-                return true;
             }
             catch ( Exception ex )
             {
-                Rock.Model.ExceptionLogService.LogException( new Exception( "Rock Detective saved its skill wording but could not apply it to Rock's AI agents right away. It will apply at the next Rock restart.", ex ) );
+                Rock.Model.ExceptionLogService.LogException( ex );
 
-                return false;
+                return null;
             }
         }
     }

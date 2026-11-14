@@ -54,6 +54,8 @@ namespace com.yesuchum.RockDetective.ViewModels
 
         public DateTime? CreatedDateTime { get; set; }
 
+        public DateTime? IssueDate { get; set; }
+
         public DateTime? ClosedDateTime { get; set; }
     }
 

@@ -167,6 +167,17 @@ namespace com.yesuchum.RockDetective.Blocks
 
                 var overdueCutoff = RockDateTime.Now.AddDays( -CaseMapper.OverdueWitnessDays );
 
+                var problemStartByCase = detectiveContext.CaseEntries
+                    .AsNoTracking()
+                    .Where( e => caseIds.Contains( e.CaseFileId )
+                        && e.EntryType == CaseEntryType.TimelineEvent
+                        && e.TimelineEventType == TimelineEventType.ProblemStart
+                        && e.EventDateTime.HasValue )
+                    .GroupBy( e => e.CaseFileId )
+                    .Select( g => new { CaseFileId = g.Key, IssueDate = g.Min( e => e.EventDateTime ) } )
+                    .ToList()
+                    .ToDictionary( x => x.CaseFileId, x => x.IssueDate );
+
                 var ownerAliasIds = cases.Select( c => c.OwnerPersonAliasId ).ToList();
                 var aliasInfo = CaseMapper.GetAliasInfo( ownerAliasIds );
 
@@ -220,11 +231,12 @@ namespace com.yesuchum.RockDetective.Blocks
                             && myParticipation.Any( p => p.Id == s.ParticipantId )
                             && ( s.RequestStatus == StatementRequestStatus.Requested || s.RequestStatus == StatementRequestStatus.Reminded ) ),
                         CreatedDateTime = caseFile.CreatedDateTime,
+                        IssueDate = problemStartByCase.TryGetValue( caseFile.Id, out var issueDate ) ? issueDate : caseFile.CreatedDateTime,
                         ClosedDateTime = caseFile.ClosedDateTime
                     } );
                 }
 
-                return items.OrderByDescending( i => i.CreatedDateTime ).ToList();
+                return items.OrderByDescending( i => i.IssueDate ).ThenByDescending( i => i.CreatedDateTime ).ToList();
             }
         }
 

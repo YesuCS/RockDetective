@@ -184,6 +184,7 @@ export type CaseFileListItemBag = {
     isAssignedToMe: boolean;
     hasMyPendingStatement: boolean;
     createdDateTime?: string | null;
+    issueDate?: string | null;
     closedDateTime?: string | null;
 };
 
@@ -371,22 +372,23 @@ export type TerminologyValuesBag = {
     gateDescriptions: Record<string, string>;
 };
 
-export type SkillWordingItemBag = {
-    key: string;
-    group: string;
-    label: string;
-    default: string;
+export type SkillToolStatusBag = {
+    guid: string;
+    name: string;
+    standardName: string;
+    description: string;
+    state: string;
+};
+
+export type SkillStatusBag = {
+    tools: SkillToolStatusBag[];
+    addedToolCount: number;
 };
 
 export type SkillSettingsInitBag = {
     canEdit: boolean;
-    items: SkillWordingItemBag[];
-    values: Record<string, string>;
-};
-
-export type SkillSettingsSaveResultBag = {
-    values: Record<string, string>;
-    isAppliedToRockAgents: boolean;
+    skillUrl?: string | null;
+    status: SkillStatusBag;
 };
 
 export type PdfResultBag = {

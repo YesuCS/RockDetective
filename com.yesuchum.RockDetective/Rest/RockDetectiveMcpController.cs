@@ -109,7 +109,7 @@ namespace com.yesuchum.RockDetective.Rest
                     ["title"] = "Rock Detective",
                     ["version"] = ServerVersion
                 },
-                ["instructions"] = Agent.SkillWording.Get( "Skill.Purpose" ) + "\n\n" + Agent.SkillWording.Get( "Skill.Usage" ) + "\n\n" + Agent.SkillWording.Get( "Skill.Guardrails" )
+                ["instructions"] = Agent.SkillWording.GetDefault( "Skill.Purpose" ) + "\n\n" + Agent.SkillWording.GetDefault( "Skill.Usage" ) + "\n\n" + Agent.SkillWording.GetDefault( "Skill.Guardrails" )
             };
         }
 

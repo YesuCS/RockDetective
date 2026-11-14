@@ -5,124 +5,129 @@
 
     <Panel v-else title="Skill Settings" type="block">
         <p class="text-muted">
-            This is the wording an AI assistant reads when it uses Rock Detective: what the skill is for, how to use it,
-            what it must not do, and what each tool does. Edit any of it to fit how your church works.
-            Anything you leave blank keeps its standard wording, shown in gray.
+            The Rock Detective skill is a regular Rock AI skill, so you can change it to fit how your church works.
+            Each tool below is a short piece of Lava you can edit in Rock's AI Skills screen: its name, its description,
+            its parameters, and the Lava itself. You can also add tools of your own or delete ones you do not want.
+            A standard tool you delete stays deleted until you add it back here.
         </p>
+
         <NotificationBox alertType="info">
-            This changes what the assistant is told, not what the tools are allowed to do. The gates, case security,
-            and who may use which tool are enforced by Rock Detective no matter what the wording says.
+            Editing a tool changes what the assistant is told and what it sends. It does not change what is allowed.
+            The checklists, case security, and who may use which tool are enforced by Rock Detective every time a tool runs.
         </NotificationBox>
 
         <NotificationBox v-if="message" :alertType="messageType" :dismissible="true" @dismiss="message = ''">{{ message }}</NotificationBox>
 
-        <div v-for="group in groups" :key="group.name" class="mb-3 p-3" style="border: 1px solid var(--color-interface-softer, #eee); border-radius: 4px;">
-            <h5 class="mt-0">{{ group.name }}</h5>
-            <div v-for="item in group.items" :key="item.key" class="mb-2">
-                <label class="control-label">{{ item.label }}</label>
-                <textarea v-model="values[item.key]" class="form-control" :rows="rowsFor(item.default)" :placeholder="item.default"></textarea>
-            </div>
+        <div class="d-flex mb-3" style="gap: 8px;">
+            <a v-if="config.skillUrl" :href="config.skillUrl" class="btn btn-primary">Edit the Skill in Rock</a>
+            <RockButton :btnType="BtnType.Default" :disabled="isWorking" @click="onRestoreAll">Restore Everything to Standard</RockButton>
         </div>
 
-        <div class="d-flex mt-3" style="gap: 8px;">
-            <RockButton :btnType="BtnType.Primary" :disabled="isSaving" @click="onSave">{{ isSaving ? "Saving..." : "Save" }}</RockButton>
-            <RockButton :btnType="BtnType.Default" :disabled="isSaving" @click="onReset">Reset to Standard Wording</RockButton>
-        </div>
+        <NotificationBox v-if="!config.skillUrl" alertType="warning">
+            The link to Rock's AI Skills screen could not be worked out. Look for AI Skills under Admin Tools, then open Rock Detective.
+        </NotificationBox>
+
+        <p v-if="status.addedToolCount > 0" class="text-muted">
+            This skill also has {{ status.addedToolCount }} {{ status.addedToolCount === 1 ? "tool" : "tools" }} you added yourself.
+            Restoring never touches those.
+        </p>
+
+        <table class="table table-condensed">
+            <thead>
+                <tr>
+                    <th>Tool</th>
+                    <th>What it does</th>
+                    <th>Status</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr v-for="tool in status.tools" :key="tool.guid">
+                    <td>
+                        {{ tool.name }}
+                        <div v-if="tool.name !== tool.standardName" class="text-muted small">Standard name: {{ tool.standardName }}</div>
+                    </td>
+                    <td class="small">{{ tool.description }}</td>
+                    <td><span :class="labelClass(tool.state)">{{ tool.state }}</span></td>
+                    <td class="text-right">
+                        <RockButton v-if="tool.state !== 'Standard'"
+                                    :btnType="BtnType.Default"
+                                    :btnSize="BtnSize.ExtraSmall"
+                                    :disabled="isWorking"
+                                    @click="onRestore(tool)">
+                            {{ tool.state === "Missing" ? "Add Back" : "Restore" }}
+                        </RockButton>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
     </Panel>
 </template>
 
 <script setup lang="ts">
-    import { ref, reactive, computed } from "vue";
+    import { ref } from "vue";
     import Panel from "@Obsidian/Controls/panel.obs";
     import RockButton from "@Obsidian/Controls/rockButton.obs";
     import NotificationBox from "@Obsidian/Controls/notificationBox.obs";
     import { BtnType } from "@Obsidian/Enums/Controls/btnType";
+    import { BtnSize } from "@Obsidian/Enums/Controls/btnSize";
     import { AlertType } from "@Obsidian/Enums/Controls/alertType";
     import { useConfigurationValues, useInvokeBlockAction } from "@Obsidian/Utility/block";
     import { confirm } from "@Obsidian/Utility/dialogs";
-    import type { SkillSettingsInitBag, SkillSettingsSaveResultBag, SkillWordingItemBag } from "./types.partial";
-
-    type WordingGroup = { name: string; items: SkillWordingItemBag[] };
+    import type { SkillSettingsInitBag, SkillStatusBag, SkillToolStatusBag } from "./types.partial";
 
     const config = useConfigurationValues<SkillSettingsInitBag>();
     const invokeBlockAction = useInvokeBlockAction();
 
-    const isSaving = ref(false);
+    const isWorking = ref(false);
     const message = ref("");
     const messageType = ref<string>(AlertType.Success);
-    const values = reactive<Record<string, string>>({});
+    const status = ref<SkillStatusBag>(config.status ?? { tools: [], addedToolCount: 0 });
 
-    const groups = computed<WordingGroup[]>(() => {
-        const result: WordingGroup[] = [];
-
-        for (const item of config.items ?? []) {
-            let group = result.find(g => g.name === item.group);
-
-            if (!group) {
-                group = { name: item.group, items: [] };
-                result.push(group);
-            }
-
-            group.items.push(item);
+    function labelClass(state: string): string {
+        if (state === "Standard") {
+            return "label label-success";
         }
 
-        return result;
-    });
-
-    function findValue(source: Record<string, string> | null | undefined, key: string): string {
-        if (!source) {
-            return "";
-        }
-
-        const match = Object.keys(source).find(k => k.toLowerCase() === key.toLowerCase());
-
-        return match ? source[match] : "";
+        return state === "Missing" ? "label label-danger" : "label label-warning";
     }
 
-    function applyValues(source: Record<string, string> | null | undefined): void {
-        for (const item of config.items ?? []) {
-            values[item.key] = findValue(source, item.key);
-        }
-    }
-
-    function rowsFor(text: string): number {
-        return Math.min(8, Math.max(2, Math.ceil(text.length / 110) + (text.match(/\n/g)?.length ?? 0)));
-    }
-
-    async function save(payload: Record<string, string>, successMessage: string): Promise<void> {
-        isSaving.value = true;
+    async function run(action: string, data: Record<string, unknown>, successMessage: string): Promise<void> {
+        isWorking.value = true;
 
         try {
-            const result = await invokeBlockAction<SkillSettingsSaveResultBag>("SaveWording", { values: payload });
+            const result = await invokeBlockAction<SkillStatusBag>(action, data);
 
             if (result.isSuccess && result.data) {
-                applyValues(result.data.values);
-                message.value = result.data.isAppliedToRockAgents
-                    ? successMessage
-                    : successMessage + " Rock's AI agents will pick it up at the next Rock restart.";
+                status.value = result.data;
+                message.value = successMessage;
                 messageType.value = AlertType.Success;
             }
             else {
-                message.value = result.errorMessage ?? "The wording could not be saved.";
+                message.value = result.errorMessage ?? "That did not work.";
                 messageType.value = AlertType.Danger;
             }
         }
         finally {
-            isSaving.value = false;
+            isWorking.value = false;
         }
     }
 
-    function onSave(): void {
-        save({ ...values }, "Wording saved. Assistants see it the next time they connect.");
+    async function onRestore(tool: SkillToolStatusBag): Promise<void> {
+        const question = tool.state === "Missing"
+            ? `Add the standard ${tool.standardName} tool back to the skill?`
+            : `Put ${tool.name} back to its standard name, description, parameters, and Lava? Your edits to it will be lost.`;
+
+        if (await confirm(question)) {
+            await run("RestoreTool", { toolGuid: tool.guid }, `${tool.standardName} is back to standard.`);
+        }
     }
 
-    async function onReset(): Promise<void> {
-        const confirmed = await confirm("Clear every custom wording here and go back to the standard wording?");
+    async function onRestoreAll(): Promise<void> {
+        const confirmed = await confirm("Put the skill and every standard tool back the way Rock Detective ships them? Your edits to them will be lost. Tools you added yourself are left alone.");
 
         if (confirmed) {
-            await save({}, "Standard wording restored.");
+            await run("RestoreAll", {}, "The skill and its standard tools are back to standard.");
         }
     }
-
-    applyValues(config.values);
 </script>

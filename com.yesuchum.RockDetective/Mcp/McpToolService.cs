@@ -29,6 +29,8 @@ namespace com.yesuchum.RockDetective.Mcp
             _tools.AddRange( GetWriteTools() );
         }
 
+        public static IReadOnlyList<McpToolDefinition> AllTools => _tools;
+
         public static IReadOnlyList<McpToolDefinition> GetTools( Rock.Model.Person person )
         {
             var isInvestigator = CaseAccess.IsInvestigator( person );
@@ -44,7 +46,7 @@ namespace com.yesuchum.RockDetective.Mcp
         public static string GetDescription( McpToolDefinition tool )
         {
             var key = string.Concat( tool.Name.Split( '_' ).Select( part => char.ToUpperInvariant( part[0] ) + part.Substring( 1 ) ) ) + ".Description";
-            var wording = Agent.SkillWording.Get( key );
+            var wording = Agent.SkillWording.GetDefault( key );
 
             return wording.IsNotNullOrWhiteSpace() ? wording : tool.Description;
         }

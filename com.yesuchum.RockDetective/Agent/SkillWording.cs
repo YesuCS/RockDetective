@@ -2,9 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 
-using Rock;
-using Rock.Web.Cache;
-
 namespace com.yesuchum.RockDetective.Agent
 {
     public class SkillWordingItem
@@ -20,8 +17,6 @@ namespace com.yesuchum.RockDetective.Agent
 
     public static class SkillWording
     {
-        public const string AttributeKey = "com_yesuchum_RockDetective_SkillWording";
-
         public const string SkillGroup = "The skill";
 
         private static readonly List<SkillWordingItem> _items = BuildItems();
@@ -33,42 +28,6 @@ namespace com.yesuchum.RockDetective.Agent
         public static string GetDefault( string key )
         {
             return _defaults.TryGetValue( key, out var value ) ? value : string.Empty;
-        }
-
-        public static string Get( string key )
-        {
-            try
-            {
-                var overrides = GetOverrides();
-
-                if ( overrides.TryGetValue( key, out var custom ) && custom.IsNotNullOrWhiteSpace() )
-                {
-                    return custom.Trim();
-                }
-            }
-            catch ( Exception ex )
-            {
-                Rock.Model.ExceptionLogService.LogException( new Exception( "Rock Detective could not read its custom skill wording; the standard wording was used.", ex ) );
-            }
-
-            return GetDefault( key );
-        }
-
-        public static Dictionary<string, string> GetOverrides()
-        {
-            var json = GlobalAttributesCache.Get().GetValue( AttributeKey );
-            var parsed = json.IsNotNullOrWhiteSpace() ? json.FromJsonOrNull<Dictionary<string, string>>() : null;
-
-            return new Dictionary<string, string>( parsed ?? new Dictionary<string, string>(), StringComparer.OrdinalIgnoreCase );
-        }
-
-        public static void SaveOverrides( Dictionary<string, string> values )
-        {
-            var cleaned = ( values ?? new Dictionary<string, string>() )
-                .Where( kv => _defaults.ContainsKey( kv.Key ) && kv.Value.IsNotNullOrWhiteSpace() && kv.Value.Trim() != GetDefault( kv.Key ) )
-                .ToDictionary( kv => kv.Key, kv => kv.Value.Trim() );
-
-            GlobalAttributesCache.Get().SetValue( AttributeKey, cleaned.Any() ? cleaned.ToJson() : string.Empty, true );
         }
 
         private static List<SkillWordingItem> BuildItems()
@@ -194,38 +153,6 @@ namespace com.yesuchum.RockDetective.Agent
                 "Documents the outcome: what happened, what fixed it, and how to prevent it." );
 
             return items;
-        }
-    }
-
-    public sealed class SkillDescriptionAttribute : System.ComponentModel.DescriptionAttribute
-    {
-        public SkillDescriptionAttribute( string key )
-            : base( SkillWording.Get( key ) )
-        {
-        }
-    }
-
-    public sealed class SkillPurposeAttribute : Rock.AI.Agent.Annotations.AgentPurposeAttribute
-    {
-        public SkillPurposeAttribute( string key )
-            : base( SkillWording.Get( key ) )
-        {
-        }
-    }
-
-    public sealed class SkillUsageAttribute : Rock.AI.Agent.Annotations.AgentUsageAttribute
-    {
-        public SkillUsageAttribute( string key )
-            : base( SkillWording.Get( key ) )
-        {
-        }
-    }
-
-    public sealed class SkillGuardrailAttribute : Rock.AI.Agent.Annotations.AgentGuardrailAttribute
-    {
-        public SkillGuardrailAttribute( string key )
-            : base( SkillWording.Get( key ) )
-        {
         }
     }
 }
