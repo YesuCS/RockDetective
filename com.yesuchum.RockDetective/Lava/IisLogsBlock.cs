@@ -66,7 +66,7 @@ namespace com.yesuchum.RockDetective.Lava
         {
             get
             {
-                return "iislogs";
+                return "IISLogs";
             }
         }
 

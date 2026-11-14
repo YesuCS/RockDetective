@@ -200,7 +200,7 @@ The rules live in the `rockdetective` command, not in the tool's wording. Howeve
 - **Your edits last.** The plugin adds each standard tool once. After that it never overwrites a tool, through Rock restarts and plugin updates, and a standard tool you delete stays deleted.
 - **A new tool has to be turned on for the agent.** A Rock agent keeps its own list of which tools are on. Open the agent, find the Rock Detective skill, and turn the new tool on. That goes for tools you add and for new standard tools that arrive with a later version. Tools that were already on stay on when you edit them.
 - **Renaming changes what the assistant sees.** The assistant knows a tool as the skill name plus the tool name, like `RockDetective__CreateCase`. Rename either and the name changes, so an assistant that is already connected needs to reconnect.
-- **Lava in a skill tool can use every Lava command.** Rock allows that because only people who can edit AI skills can write one. Anywhere else, `rockdetective` is a secured command like `sql` or `execute`: add it to the enabled Lava commands on the block or template that uses it.
+- **Lava in a skill tool can use every Lava command.** Rock allows that because only people who can edit AI skills can write one. Anywhere else, `rockdetective` is a secured command like `sql` or `execute`: tick **Rock Detective** in the Enabled Lava Commands on the block or template that uses it.
 
 ### Putting things back
 
@@ -265,7 +265,7 @@ A few more things worth knowing:
 
 The same search is available as a Lava command, for when you want log data on a page, in a report, or in a workflow instead of through an assistant.
 
-It has to be enabled first, like any secured Lava command: add `iislogs` to the enabled Lava commands on the block or template that uses it.
+It has to be enabled first, like any secured Lava command: tick **IIS Logs** in the Enabled Lava Commands on the block or template that uses it.
 
 ```
 {% iislogs status:'500' minutes:'60' limit:'25' %}
@@ -297,5 +297,5 @@ Inside the block, `logEntries` is the list of entries and `logResult` has `Match
 - IIS logs include IP addresses and usernames, so only Rock administrators can search them, on both routes. Sensitive query string values are redacted before they reach the assistant.
 - The direct endpoint only accepts `application/json`, which keeps a web page in someone's browser from posting to it behind their back.
 - If you only want one route, leave the other closed: don't add the skill to an agent, or don't grant anyone the REST action.
-- The `iislogs` and `rockdetective` Lava commands are off until an administrator enables them, the same as `execute` or `sql`. The one exception is Lava inside an AI skill tool, where Rock turns every command on.
+- The `iislogs` and `rockdetective` Lava commands are off until an administrator enables them, the same as `execute` or `sql`. They show up as **IIS Logs** and **Rock Detective** wherever Rock lists Lava commands to enable. Rock builds that list from every secured command it finds, so seeing them there is expected, and the plugin never ticks them for you. The one exception is Lava inside an AI skill tool, where Rock turns every command on.
 - Editing the skill takes access to Rock's AI Skills pages, which is Rock Administration unless you open it up. Whoever edits a tool is writing Lava that runs on your server, so treat that access the way you treat access to the `sql` command.

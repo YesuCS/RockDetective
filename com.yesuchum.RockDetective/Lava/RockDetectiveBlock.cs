@@ -101,7 +101,7 @@ namespace com.yesuchum.RockDetective.Lava
         {
             get
             {
-                return "rockdetective";
+                return "RockDetective";
             }
         }
 
