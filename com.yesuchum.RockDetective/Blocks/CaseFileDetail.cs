@@ -316,7 +316,7 @@ namespace com.yesuchum.RockDetective.Blocks
 
         private bool IsPhaseJumpingRestricted()
         {
-            return GetAttributeValue( AttributeKey.RestrictPhaseJumping ).AsBoolean();
+            return GetAttributeValue( AttributeKey.RestrictPhaseJumping ).AsBooleanOrNull() ?? true;
         }
 
         private static bool IsInRole( List<Model.CaseParticipant> participants, Rock.Model.Person person, ParticipantRole role )

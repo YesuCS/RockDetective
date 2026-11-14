@@ -275,7 +275,7 @@ Version 1.1.0 added four more, numbered for Rock 19.7 so they only run there or 
 - `_002_AddIisLogPathSetting`: the Rock Detective IIS Log Folder global attribute.
 - `_003_AddTerminologySettings`: the Category attribute for per-category wording (it looks up the Case File entity type Id for the qualifier) and the default terminology global attribute.
 - `_004_AddTerminologySettingsPage`: the Terminology Settings block entity type, block type, page, and block. The entity type is registered before the block type, for the same clean-install reason as in `_001`.
-- `_006_AddRoleAccess`: View on the Rock Detective page for the Rock Detective Users role (the child pages inherit it), and the All Users deny on Case File View described under security.
+- `_006_AddRoleAccess`: View on the Rock Detective page for the Rock Detective Users role (the child pages inherit it), and the All Users deny on Case File View described under security. It also sets the Case Board's Restrict Phase Jumping default to on where that setting already exists from 1.0. The block treats a setting that Rock has not created yet as on, so a fresh install enforces the gates before anyone has opened the Case Board page.
 - `_005_AddSkillSettingsPage`: the Skill Settings block entity type, block type, page, and block. The skill itself is not in a migration; `SkillSeeder` adds it at startup.
 
 Everything is add-or-update or existence-guarded, so a re-run over surviving rows is safe. Plugin migrations only run on a full Rock application restart. Each `Down()` reverses its own migration. Post-1.0 changes go in new higher-numbered migrations; never edit a shipped one.

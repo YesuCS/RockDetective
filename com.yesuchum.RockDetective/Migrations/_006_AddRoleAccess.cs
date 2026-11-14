@@ -18,6 +18,15 @@ namespace com.yesuchum.RockDetective.Migrations
             RockMigrationHelper.AddSecurityAuthForPage( SystemGuid.Page.ROCK_DETECTIVE, 0, Rock.Security.Authorization.VIEW, true, SystemGuid.Group.ROCK_DETECTIVE_USERS, 0, AuthPageRoleView );
 
             RockMigrationHelper.AddSecurityAuthForEntityType( CaseFileEntityName, 5, Rock.Security.Authorization.VIEW, false, null, AllUsers, AuthCaseDenyOthersView );
+
+            Sql( $@"
+                UPDATE [a]
+                SET [a].[DefaultValue] = 'True'
+                FROM [Attribute] AS [a]
+                INNER JOIN [BlockType] AS [bt] ON CAST( [bt].[Id] AS NVARCHAR(20) ) = [a].[EntityTypeQualifierValue]
+                WHERE [a].[Key] = 'RestrictPhaseJumping'
+                    AND [a].[EntityTypeQualifierColumn] = 'BlockTypeId'
+                    AND [bt].[Guid] = '{SystemGuid.BlockType.CASE_FILE_DETAIL}'" );
         }
 
         public override void Down()
