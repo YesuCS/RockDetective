@@ -77,7 +77,8 @@ namespace com.yesuchum.RockDetective.Enums
     {
         Direct = 0,
         Witness = 1,
-        Experiment = 2
+        Experiment = 2,
+        Agent = 3
     }
 
     public enum HypothesisStatus

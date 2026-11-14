@@ -61,7 +61,8 @@ export const TimelineEventType = {
 export const CaseEntrySource = {
     Direct: 0,
     Witness: 1,
-    Experiment: 2
+    Experiment: 2,
+    Agent: 3
 } as const;
 
 export const HypothesisStatus = {

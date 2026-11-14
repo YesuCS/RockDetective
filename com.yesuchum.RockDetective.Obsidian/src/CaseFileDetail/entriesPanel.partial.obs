@@ -19,7 +19,7 @@
                     <td>
                         {{ entry.text }}
                         <div v-if="entry.source !== 0" class="text-muted" style="font-size: 12.5px;">
-                            From {{ entry.source === 1 ? (tl("Witness") + " " + (entry.sourceParticipantName ?? "")) : (tl("Experiment") + " learnings") }}
+                            {{ entry.source === 3 ? "Added by an AI assistant" : ("From " + (entry.source === 1 ? (tl("Witness") + " " + (entry.sourceParticipantName ?? "")) : (tl("Experiment") + " learnings"))) }}
                         </div>
                         <div v-if="entryType === 2" class="text-muted" style="font-size: 12.5px;">
                             <span v-if="entry.binaryFileName"><i class="ti ti-paperclip"></i> {{ entry.binaryFileName }}</span>

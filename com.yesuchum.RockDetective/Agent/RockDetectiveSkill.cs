@@ -11,11 +11,15 @@ namespace com.yesuchum.RockDetective.Agent
 {
     [AgentSkillGuid( "2C5BE126-3BEC-4B15-A2F4-80FD685ABE84" )]
     [EntityTypeGuid( "AB74DD39-8E95-44A5-B057-63039BAE8AB3" )]
-    [Description( "Reads Rock Detective problem-solving case files and searches the web server's IIS logs for evidence." )]
-    [AgentPurpose( "Lets the agent look up Rock Detective cases and gather request-level evidence from the IIS logs." )]
+    [Description( "Works Rock Detective problem-solving case files from start to finish: opens a case, gathers facts and evidence, tests possible causes, and closes with a postmortem. Also searches the web server's IIS logs for evidence." )]
+    [AgentPurpose( "Lets the agent diagnose a problem methodically and document the decisions, findings, and fix in a case file." )]
     [AgentUsage( "Use ListCases to find a case and its IdKey, then GetCase for its full detail. Use SearchIISLogs when investigating errors or slow pages." )]
+    [AgentUsage( "To work a problem, open a case with CreateCase and follow the phase it reports. Every tool that changes a case returns the current phase, its guidance, its checklist, and the next step. Do the work the checklist asks for, save your reasoning with SavePhaseNotes, then use CompletePhase. Finish with CloseCase." )]
+    [AgentGuardrail( "Record only what is verified as a corroborated fact. Mark anything a person reported, or anything inferred, as not corroborated until evidence backs it." )]
+    [AgentGuardrail( "Change one thing at a time in an experiment, log every change, and revert it or say why it stays." )]
+    [AgentGuardrail( "Do not confirm a hypothesis without an experiment that supports it." )]
     [AgentGuardrail( "Phase names, terms, and gate wording come back the way the case's category has them set up. Use those words when talking about the case." )]
-    public class RockDetectiveSkill : AgentSkillComponent
+    public partial class RockDetectiveSkill : AgentSkillComponent
     {
         [Description( "Lists the Rock Detective case files the current person can view, newest first." )]
         [AgentPurpose( "Finds case files and their IdKeys." )]

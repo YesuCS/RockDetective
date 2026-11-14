@@ -14,7 +14,7 @@ namespace com.yesuchum.RockDetective.Pdf
         private static readonly string[] HypothesisStatusNames = { "Proposed", "Testing", "Ruled Out", "Confirmed" };
         private static readonly string[] OutcomeNames = { "Pending", "Supported", "Ruled Out", "Inconclusive" };
         private static readonly string[] TimelineTypeNames = { "Problem Start", "Last Known Good", "Change", "Activity", "Other" };
-        private static readonly string[] EntrySourceNames = { "Direct", "Witness", "Experiment" };
+        private static readonly string[] EntrySourceNames = { "Direct", "Witness", "Experiment", "AI Assistant" };
 
         public static string BuildHtml( CaseFileBag bag )
         {
@@ -84,7 +84,7 @@ namespace com.yesuchum.RockDetective.Pdf
         private static void AppendCover( StringBuilder sb, CaseFileBag bag )
         {
             sb.Append( "<div class=\"cover\">" );
-            sb.Append( $"<div class=\"case-number\">{T( bag, "CaseFile" )} #{H( bag.CaseNumber )}</div>" );
+            sb.Append( $"<div class=\"case-number\">{T( bag, "CaseFile" )} {H( bag.IdKey )}</div>" );
             sb.Append( $"<h1>{H( bag.Title )}</h1>" );
             sb.Append( $"<p class=\"muted\">Category: {H( bag.CategoryName ?? "None" )} &middot; Status: {Name( StatusNames, bag.Status )} &middot; Mode: {( bag.Mode == 1 ? "Advanced" : "Simple" )}</p>" );
             sb.Append( $"<p class=\"muted\">Opened: {bag.CreatedDateTime:MMMM d, yyyy}" );

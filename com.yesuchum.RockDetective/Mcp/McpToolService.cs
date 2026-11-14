@@ -16,13 +16,18 @@ using com.yesuchum.RockDetective.Logs;
 
 namespace com.yesuchum.RockDetective.Mcp
 {
-    public static class McpToolService
+    public static partial class McpToolService
     {
         private static readonly JsonSerializerSettings _serializerSettings = new JsonSerializerSettings
         {
             ContractResolver = new CamelCasePropertyNamesContractResolver(),
             NullValueHandling = NullValueHandling.Ignore
         };
+
+        static McpToolService()
+        {
+            _tools.AddRange( GetWriteTools() );
+        }
 
         public static IReadOnlyList<McpToolDefinition> GetTools()
         {
