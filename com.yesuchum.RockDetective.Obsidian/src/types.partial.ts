@@ -1,4 +1,21 @@
-import { inject } from "vue";
+import { inject, ref, watch, type InjectionKey, type Ref } from "vue";
+
+export type PanelExpandSignal = { isOpen: boolean; tick: number };
+
+export const panelExpandKey: InjectionKey<Ref<PanelExpandSignal>> = Symbol("rd-panel-expand");
+
+export function usePanelExpansion(): Ref<boolean> {
+    const signal = inject(panelExpandKey, null);
+    const isOpen = ref(false);
+
+    if (signal) {
+        watch(() => signal.value.tick, () => {
+            isOpen.value = signal.value.isOpen;
+        });
+    }
+
+    return isOpen;
+}
 
 export const CaseStatus = {
     Open: 0,

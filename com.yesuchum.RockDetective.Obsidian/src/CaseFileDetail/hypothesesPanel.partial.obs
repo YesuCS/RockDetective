@@ -1,5 +1,5 @@
 <template>
-    <Panel :title="title" :hasCollapse="true">
+    <Panel v-model="isPanelOpen" :title="title" :hasCollapse="true">
         <template #headerActions>
             <RockButton v-if="canEdit" :btnType="BtnType.Default" :btnSize="BtnSize.ExtraSmall" @click.stop="onAdd(null)">
                 <i class="ti ti-plus"></i>
@@ -58,7 +58,9 @@
     import { BtnSize } from "@Obsidian/Enums/Controls/btnSize";
     import { confirmDelete } from "@Obsidian/Utility/dialogs";
     import type { ListItemBag } from "@Obsidian/ViewModels/Utility/listItemBag";
-    import { hypothesisStatusNames, useTerms, type HypothesisBag } from "../types.partial";
+    import { hypothesisStatusNames, useTerms, usePanelExpansion, type HypothesisBag } from "../types.partial";
+
+    const isPanelOpen = usePanelExpansion();
 
     const { t, tl } = useTerms();
 

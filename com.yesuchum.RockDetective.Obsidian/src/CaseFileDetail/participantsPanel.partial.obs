@@ -1,5 +1,5 @@
 <template>
-    <Panel :title="'Team and ' + tp('Witness')" :hasCollapse="true">
+    <Panel v-model="isPanelOpen" :title="'Team and ' + tp('Witness')" :hasCollapse="true">
         <template #headerActions>
             <RockButton v-if="canEdit" :btnType="BtnType.Default" :btnSize="BtnSize.ExtraSmall" @click.stop="onAdd">
                 <i class="ti ti-plus"></i>
@@ -147,7 +147,9 @@
     import { confirmDelete } from "@Obsidian/Utility/dialogs";
     import { RockDateTime } from "@Obsidian/Utility/rockDateTime";
     import type { ListItemBag } from "@Obsidian/ViewModels/Utility/listItemBag";
-    import { roleNames, requestStatusNames, useTerms, type ParticipantBag, type StatementBag } from "../types.partial";
+    import { roleNames, requestStatusNames, useTerms, usePanelExpansion, type ParticipantBag, type StatementBag } from "../types.partial";
+
+    const isPanelOpen = usePanelExpansion();
 
     const { t, tp, tl, tpl } = useTerms();
 

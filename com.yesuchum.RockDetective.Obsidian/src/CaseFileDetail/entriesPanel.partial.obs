@@ -1,5 +1,5 @@
 <template>
-    <Panel :title="title" :hasCollapse="true">
+    <Panel v-model="isPanelOpen" :title="title" :hasCollapse="true">
         <template #headerActions>
             <RockButton v-if="canEdit" :btnType="BtnType.Default" :btnSize="BtnSize.ExtraSmall" @click.stop="onAdd">
                 <i class="ti ti-plus"></i>
@@ -69,7 +69,9 @@
     import { confirmDelete } from "@Obsidian/Utility/dialogs";
     import { RockDateTime } from "@Obsidian/Utility/rockDateTime";
     import type { ListItemBag } from "@Obsidian/ViewModels/Utility/listItemBag";
-    import { timelineTypeNames, useTerms, type CaseEntryBag } from "../types.partial";
+    import { timelineTypeNames, useTerms, usePanelExpansion, type CaseEntryBag } from "../types.partial";
+
+    const isPanelOpen = usePanelExpansion();
 
     const { tl } = useTerms();
 

@@ -43,7 +43,13 @@
                           :isJumpRestricted="config.isPhaseJumpingRestricted"
                           @phaseSelected="onPhaseSelected" />
 
-            <Panel title="Standing Principles" :hasCollapse="true" :isDrawerOpen="false">
+            <div class="d-flex justify-content-end mb-1">
+                <a href="#" class="text-muted" style="font-size: 12px;" @click.prevent="onToggleAllPanels">
+                    <i class="ti mr-1" :class="areAllPanelsOpen ? 'ti-fold' : 'ti-fold-down'"></i>{{ areAllPanelsOpen ? "Collapse all" : "Expand all" }}
+                </a>
+            </div>
+
+            <Panel v-model="isPrinciplesOpen" title="Standing Principles" :hasCollapse="true" :isDrawerOpen="false">
                 <ol class="mb-2">
                     <li v-for="principle in config.principles" :key="principle">{{ principle }}</li>
                 </ol>
@@ -220,6 +226,8 @@
         downloadPdf,
         createTermLookup,
         termsInjectionKey,
+        panelExpandKey,
+        type PanelExpandSignal,
         type CaseBoardInitBag,
         type CaseEntryBag,
         type CaseFileBag,
@@ -238,6 +246,19 @@
     const terms = createTermLookup(() => caseFile.value?.terms);
     const { t, tp, tl } = terms;
     provide(termsInjectionKey, terms);
+
+    const panelExpandSignal = ref<PanelExpandSignal>({ isOpen: false, tick: 0 });
+    const isPrinciplesOpen = ref(false);
+    const areAllPanelsOpen = computed(() => panelExpandSignal.value.isOpen);
+
+    provide(panelExpandKey, panelExpandSignal);
+
+    function onToggleAllPanels(): void {
+        const isOpen = !panelExpandSignal.value.isOpen;
+
+        panelExpandSignal.value = { isOpen, tick: panelExpandSignal.value.tick + 1 };
+        isPrinciplesOpen.value = isOpen;
+    }
 
     const phaseDefinitions = computed(() => caseFile.value?.phaseDefinitions?.length ? caseFile.value.phaseDefinitions : config.phaseDefinitions);
 
