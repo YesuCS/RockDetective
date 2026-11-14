@@ -4,6 +4,7 @@
             <p class="text-muted">Click a question to see the steps.</p>
             <div v-for="group in howToGroups" :key="group.label" class="mb-3">
                 <div class="mb-1"><strong>{{ group.label }}</strong></div>
+                <p v-if="group.preface" class="text-muted mb-2" style="font-size: 13px;">{{ group.preface }}</p>
                 <div class="list-group mb-0">
                     <div v-for="item in group.items" :key="item.question" class="list-group-item p-0">
                         <a href="#"
@@ -156,7 +157,7 @@
 
     type HowTo = { question: string; steps: string[]; note?: string };
 
-    const howToGroups: { label: string; items: HowTo[] }[] = [
+    const howToGroups: { label: string; preface?: string; items: HowTo[] }[] = [
         {
             label: "Finding cases",
             items: [
@@ -184,6 +185,18 @@
                 { question: "Reopen a closed case", steps: ["Find it with Show set to Archived and open it.", "Click the three dots at the top right of the board.", "Choose Reopen."], note: "The case goes back to phase 5, and the phases from there on are worked again." },
                 { question: "Set a case aside without closing it", steps: ["Open the case.", "Click the three dots at the top right of the board.", "Choose Abandon."], note: "Nothing is lost. Open the case and click Resume to pick it back up." },
                 { question: "See who created or last changed a case", steps: ["Open the case, click the three dots at the top right of the board, and choose Audit Details."] }
+            ]
+        },
+        {
+            label: "Using an AI assistant",
+            preface: "This part only applies if AI assistants are set up for Rock Detective on your Rock site. If you are not sure, ask your Rock administrator. Everything above works without it.",
+            items: [
+                { question: "What can an AI assistant do with cases?", steps: ["It can open a case, gather facts and evidence, suggest and test possible causes, and close the case with a postmortem. It follows the same phases and the same gates you do, and it can only see and change the cases you can."] },
+                { question: "Get an assistant connected", steps: ["Ask your Rock administrator for the Rock Detective address for AI assistants.", "Add that address to your assistant as a connection, following the assistant's own instructions for adding one.", "Sign in the way your administrator tells you to. The assistant then works as you."], note: "Your administrator decides who can connect and which tools are turned on." },
+                { question: "Have an assistant work a problem", steps: ["Describe the problem in plain words and ask it to open a Rock Detective case. For example: \"Connect card submissions have been failing on Sunday mornings. Open a Rock Detective case and work it through.\"", "Answer its questions as it goes. It will tell you when a gate needs something only a person can provide.", "Open the case on the board at any time to see what it has recorded."] },
+                { question: "Tell what the assistant added", steps: ["On the board, anything an assistant added says \"Added by an AI assistant\" under it. The PDF lists AI Assistant as the source."], note: "Read what it recorded as fact before you rely on it. A fact is only as good as the evidence behind it." },
+                { question: "Can the assistant skip a gate or sign off for the Champion?", steps: ["No. It has to meet every gate, the same as a person, and only the Champion can sign off. When the Champion is someone outside Rock, the case owner records their sign-off."] },
+                { question: "Answer a statement request through an assistant", steps: ["If you were asked for a statement, ask your assistant what statement requests are waiting for you.", "Tell it your answer in your own words and ask it to submit it, or ask it to decline."], note: "A witness can only see and answer their own requests this way, not the rest of the case." }
             ]
         }
     ];

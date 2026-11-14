@@ -1,10 +1,10 @@
 <template>
     <div class="rd-stepper-select mb-3">
         <select class="form-control" :value="String(currentPhase)" @change="onSelectChange">
-            <option v-for="definition in visibleDefinitions" :key="definition.phase"
+            <option v-for="definition in definitions" :key="definition.phase"
                     :value="String(definition.phase)"
-                    :disabled="isPhaseDisabled(definition.phase)">
-                {{ progressOf(definition.phase) === 2 ? "✓ " : "" }}{{ definition.phase }}. {{ definition.name }}
+                    :disabled="isPhaseDisabled(definition.phase) || isUnused(definition)">
+                {{ progressOf(definition.phase) === 2 ? "✓ " : "" }}{{ definition.phase }}. {{ definition.name }}{{ isUnused(definition) ? " (not used in Simple)" : "" }}
             </option>
         </select>
     </div>
@@ -20,10 +20,12 @@
                         type="button"
                         class="btn btn-xs"
                         :class="buttonClass(definition.phase)"
+                        :style="isUnused(definition) ? 'opacity: 0.45; border-style: dashed;' : ''"
                         :title="chipTitle(definition)"
-                        :disabled="isPhaseDisabled(definition.phase)"
+                        :disabled="isPhaseDisabled(definition.phase) || isUnused(definition)"
                         @click="$emit('phaseSelected', definition.phase)">
-                    <i v-if="progressOf(definition.phase) === 2 && definition.phase !== currentPhase" class="ti ti-check mr-1"></i>
+                    <i v-if="isUnused(definition)" class="ti ti-minus mr-1"></i>
+                    <i v-else-if="progressOf(definition.phase) === 2 && definition.phase !== currentPhase" class="ti ti-check mr-1"></i>
                     <i v-else-if="isPhaseDisabled(definition.phase)" class="ti ti-lock mr-1"></i>
                     <i v-else-if="progressOf(definition.phase) === 3" class="ti ti-arrow-forward mr-1"></i>
                     {{ definition.phase }}<template v-if="definition.phase === currentPhase">. {{ definition.name }}</template>
@@ -76,8 +78,15 @@
         }
     }
 
-    const visibleDefinitions = computed(() =>
-        props.definitions.filter(d => !props.isSimpleMode || !d.isAutoSkippedInSimpleMode || progressOf(d.phase) === 1 || progressOf(d.phase) === 2));
+    function isUnused(definition: PhaseDefinitionBag): boolean {
+        if (!props.isSimpleMode || !definition.isAutoSkippedInSimpleMode || definition.phase === props.currentPhase) {
+            return false;
+        }
+
+        const progress = progressOf(definition.phase);
+
+        return progress !== 1 && progress !== 2;
+    }
 
     type Stage = { key: string; label: string; hint: string; isLoop: boolean; definitions: PhaseDefinitionBag[] };
 
@@ -85,15 +94,19 @@
         const loopNames = props.definitions.filter(d => d.isLoopPhase).map(d => d.name).join(", ");
 
         const all: Stage[] = [
-            { key: "setup", label: "Set up", hint: "Get the team, the problem, and the timeline straight before investigating.", isLoop: false, definitions: visibleDefinitions.value.filter(d => d.phase < 5) },
-            { key: "investigate", label: "Investigate", hint: `These phases loop: keep cycling through ${loopNames} until a cause is confirmed beyond a reasonable doubt.`, isLoop: true, definitions: visibleDefinitions.value.filter(d => d.phase >= 5 && d.phase <= 8) },
-            { key: "close", label: "Close", hint: "Write up what happened and how to prevent it.", isLoop: false, definitions: visibleDefinitions.value.filter(d => d.phase > 8) }
+            { key: "setup", label: "Set up", hint: "Get the team, the problem, and the timeline straight before investigating.", isLoop: false, definitions: props.definitions.filter(d => d.phase < 5) },
+            { key: "investigate", label: "Investigate", hint: `These phases loop: keep cycling through ${loopNames} until a cause is confirmed beyond a reasonable doubt.`, isLoop: true, definitions: props.definitions.filter(d => d.phase >= 5 && d.phase <= 8) },
+            { key: "close", label: "Close", hint: "Write up what happened and how to prevent it.", isLoop: false, definitions: props.definitions.filter(d => d.phase > 8) }
         ];
 
         return all.filter(s => s.definitions.length > 0);
     });
 
     function chipTitle(definition: PhaseDefinitionBag): string {
+        if (isUnused(definition)) {
+            return `${definition.phase}. ${definition.name}: not used in Simple mode. Upgrade to Advanced to work this phase.`;
+        }
+
         if (isPhaseDisabled(definition.phase)) {
             return `${definition.phase}. ${definition.name}: locked until the phases before it are complete.`;
         }

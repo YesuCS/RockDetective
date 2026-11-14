@@ -53,7 +53,7 @@ Your filters are remembered, and the filter icon is highlighted whenever one is 
 The three dots at the top right of the list have two built-in helps for people who are new to it:
 
 - **How a Case Works** is a rundown of the process. It shows the nine phases in their three groups with a one-line summary of each. Click a phase to open it up and see the questions to work through and what its gate asks for, in Advanced and in Simple mode. The standing principles are at the bottom.
-- **Quick Guide** answers everyday questions step by step, like how to find a closed case, export a PDF, reopen a case, or ask someone for a statement.
+- **Quick Guide** answers everyday questions step by step, like how to find a closed case, export a PDF, reopen a case, or ask someone for a statement. Its last section covers working with an AI assistant, and says up front that it only applies if AI assistants are set up on your site.
 
 The list leads with **Date | Name | Status** and sorts with the newest problem first. The date is when the problem started, taken from the Problem Start event on the case's timeline. Until a case has one, it shows the day the case was opened. Once you have a lot of cases, the date is the fastest way to find the one you're after.
 
@@ -76,7 +76,7 @@ The top of the board reads **Name | Status**, with the category and mode at the 
 
 Export PDF, Upgrade to Advanced, Abandon, Reopen, and Audit Details are in the menu at the top right of the board (the three dots), so the board itself stays on the work.
 
-The stepper across the top shows the phases in three groups: **Set up** (phases 1 to 4), **Investigate** (5 to 8), and **Close** (9). Each phase is a small numbered button. Green with a check is complete, and the highlighted one, the only one that shows its name, is where you are. Hover over any number to see that phase's name and what it's for, and click it to go there. In Simple mode, Define the Team and Timeline stay out of the stepper unless you started them. The Investigate phases (Fact List, Probability Tree, Experiments, Reevaluate) loop; keep cycling through them until a cause is confirmed beyond a reasonable doubt.
+The stepper across the top shows the phases in three groups: **Set up** (phases 1 to 4), **Investigate** (5 to 8), and **Close** (9). Each phase is a small numbered button. Green with a check is complete, and the highlighted one, the only one that shows its name, is where you are. Hover over any number to see that phase's name and what it's for, and click it to go there. In Simple mode, Define the Team and Timeline aren't used, so they show greyed out with a dash. That way the numbers still run 1 to 9 and nothing looks missing. The Investigate phases (Fact List, Probability Tree, Experiments, Reevaluate) loop; keep cycling through them until a cause is confirmed beyond a reasonable doubt.
 
 On a phone (screens under 768 pixels wide) the stepper becomes a dropdown. Completed phases carry a check mark, and locked phases are greyed out.
 
