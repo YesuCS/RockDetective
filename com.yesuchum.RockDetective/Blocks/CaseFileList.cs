@@ -69,7 +69,8 @@ namespace com.yesuchum.RockDetective.Blocks
                 DefaultView = GetAttributeValue( AttributeKey.DefaultView ),
                 CanAddCase = currentPerson != null,
                 DetailPageUrl = this.GetLinkedPageUrl( AttributeKey.DetailPage, new Dictionary<string, string> { { PageParameterKey.CaseFile, "PLACEHOLDER" } } ),
-                Categories = GetCategoryOptions()
+                Categories = GetCategoryOptions(),
+                Method = GetMethodOverview()
             };
 
             if ( currentPerson != null )
@@ -95,6 +96,33 @@ namespace com.yesuchum.RockDetective.Blocks
             }
 
             return box;
+        }
+
+        private static MethodOverviewBag GetMethodOverview()
+        {
+            var profile = MethodProfile.ForCategory( null );
+            var options = Mcp.CaseWorkflowService.GetGateOptions();
+            var advanced = new CaseAggregate { Mode = CaseMode.Advanced };
+            var simple = new CaseAggregate { Mode = CaseMode.Simple };
+
+            return new MethodOverviewBag
+            {
+                Principles = MethodDefinition.Principles,
+                MindsetGuidance = MethodDefinition.MindsetGuidance,
+                ContextualTips = MethodDefinition.ContextualTips,
+                ChampionTerm = profile.Format( "{Champion}" ),
+                Phases = profile.Phases.Select( d => new MethodPhaseBag
+                {
+                    Phase = ( int ) d.Phase,
+                    Name = d.Name,
+                    Guidance = d.Guidance,
+                    Prompts = d.Prompts,
+                    IsAutoSkippedInSimpleMode = d.IsAutoSkippedInSimpleMode,
+                    IsLoopPhase = d.IsLoopPhase,
+                    AdvancedGates = GateEvaluator.Evaluate( advanced, d.Phase, options ).Requirements.Select( r => profile.DescribeGate( r ) ).ToList(),
+                    SimpleGates = GateEvaluator.Evaluate( simple, d.Phase, options ).Requirements.Select( r => profile.DescribeGate( r ) ).ToList()
+                } ).ToList()
+            };
         }
 
         private List<CategoryOptionBag> GetCategoryOptions()

@@ -50,6 +50,11 @@ The list shows every case you have access to. The filter icon on the grid opens 
 
 Your filters are remembered, and the filter icon is highlighted whenever one is on.
 
+The three dots at the top right of the list have two built-in helps for people who are new to it:
+
+- **How a Case Works** is a rundown of the process. It shows the nine phases in their three groups with a one-line summary of each. Click a phase to open it up and see the questions to work through and what its gate asks for, in Advanced and in Simple mode. The standing principles are at the bottom.
+- **Quick Guide** answers everyday questions step by step, like how to find a closed case, export a PDF, reopen a case, or ask someone for a statement.
+
 The list leads with **Date | Name | Status** and sorts with the newest problem first. The date is when the problem started, taken from the Problem Start event on the case's timeline. Until a case has one, it shows the day the case was opened. Once you have a lot of cases, the date is the fastest way to find the one you're after.
 
 ## Opening a case

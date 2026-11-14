@@ -196,6 +196,26 @@ export type CaseFileListInitBag = {
     detailPageUrl?: string | null;
     terminologySettingsUrl?: string | null;
     skillSettingsUrl?: string | null;
+    method: MethodOverviewBag;
+};
+
+export type MethodPhaseBag = {
+    phase: number;
+    name: string;
+    guidance: string;
+    prompts: string[];
+    isAutoSkippedInSimpleMode: boolean;
+    isLoopPhase: boolean;
+    advancedGates: string[];
+    simpleGates: string[];
+};
+
+export type MethodOverviewBag = {
+    phases: MethodPhaseBag[];
+    principles: string[];
+    mindsetGuidance?: string | null;
+    contextualTips: string[];
+    championTerm?: string | null;
 };
 
 export type NewCaseResultBag = {

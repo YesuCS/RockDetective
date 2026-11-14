@@ -25,6 +25,7 @@
           gridSettings
           :gridSettingsActive="hasSettingsFilters"
           :showLaunchWorkflow="false"
+          :customActions="customGridActions"
           :onAddItem="config.canAddCase && !isArchivedOnly ? onAddCase : undefined"
           @gridSettingsClick="onGridSettingsClick"
           @selectItem="onSelectItem">
@@ -47,6 +48,8 @@
         <SecurityColumn :itemTitle="'title'" />
         <DeleteColumn :rowDisabled="isDeleteRowDisabled" @click="onDeleteClick" />
     </Grid>
+
+    <MethodModal v-model:visible="isMethodVisible" :method="config.method ?? emptyMethod" :view="methodView" />
 
     <GridSettingsModal v-model="gridSettings"
                        v-model:visible="isGridSettingsVisible"
@@ -108,7 +111,9 @@
     import type { GridDataBag } from "@Obsidian/ViewModels/Core/Grid/gridDataBag";
     import type { ListItemBag } from "@Obsidian/ViewModels/Utility/listItemBag";
     import GridSettingsModal, { type GridSettingsOptions } from "./CaseFileList/gridSettingsModal.partial.obs";
-    import type { ArchiveSearchResultBag, CaseFileListInitBag, CaseFileListItemBag, NewCaseResultBag } from "./types.partial";
+    import MethodModal from "./CaseFileList/methodModal.partial.obs";
+    import type { GridAction } from "@Obsidian/Types/Controls/grid";
+    import type { ArchiveSearchResultBag, CaseFileListInitBag, CaseFileListItemBag, MethodOverviewBag, NewCaseResultBag } from "./types.partial";
 
     const config = useConfigurationValues<CaseFileListInitBag>();
     const invokeBlockAction = useInvokeBlockAction();
@@ -122,6 +127,31 @@
     const archiveLoaded = ref(false);
 
     const isGridSettingsVisible = ref(false);
+    const isMethodVisible = ref(false);
+    const emptyMethod: MethodOverviewBag = { phases: [], principles: [], contextualTips: [] };
+
+    const methodView = ref<"process" | "howto">("process");
+
+    const customGridActions: GridAction[] = [
+        {
+            title: "How a Case Works",
+            tooltip: "A rundown of the nine phases and what each one asks for.",
+            iconCssClass: "ti ti-map-2",
+            handler: () => {
+                methodView.value = "process";
+                isMethodVisible.value = true;
+            }
+        },
+        {
+            title: "Quick Guide",
+            tooltip: "Step-by-step answers for everyday tasks like exporting a PDF or reopening a case.",
+            iconCssClass: "ti ti-help-circle",
+            handler: () => {
+                methodView.value = "howto";
+                isMethodVisible.value = true;
+            }
+        }
+    ];
     const gridSettings = ref<GridSettingsOptions>({
         category: preferences.getValue("filter-category"),
         status: preferences.getValue("filter-status"),

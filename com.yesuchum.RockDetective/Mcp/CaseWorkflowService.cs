@@ -73,7 +73,7 @@ namespace com.yesuchum.RockDetective.Mcp
             return match.Id;
         }
 
-        private static GateRequirementOptions GetGateOptions()
+        internal static GateRequirementOptions GetGateOptions()
         {
             var defaults = new GateRequirementOptions();
             var block = BlockCache.Get( CaseBoardBlockGuid.AsGuid() );

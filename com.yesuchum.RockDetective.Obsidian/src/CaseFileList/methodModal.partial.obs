@@ -1,0 +1,222 @@
+<template>
+    <Modal v-model="isVisible" :title="view === 'howto' ? 'Quick Guide' : 'How a Case Works'" cancelText="Close">
+        <template v-if="view === 'howto'">
+            <p class="text-muted">Click a question to see the steps.</p>
+            <div v-for="group in howToGroups" :key="group.label" class="mb-3">
+                <div class="mb-1"><strong>{{ group.label }}</strong></div>
+                <div class="list-group mb-0">
+                    <div v-for="item in group.items" :key="item.question" class="list-group-item p-0">
+                        <a href="#"
+                           class="d-flex align-items-start p-2"
+                           style="gap: 10px; text-decoration: none; color: inherit;"
+                           :aria-expanded="openQuestions.includes(item.question)"
+                           @click.prevent="toggleQuestion(item.question)">
+                            <span style="flex: 1;">{{ item.question }}</span>
+                            <i class="ti text-muted" :class="openQuestions.includes(item.question) ? 'ti-chevron-up' : 'ti-chevron-down'"></i>
+                        </a>
+                        <div v-if="openQuestions.includes(item.question)" class="px-3 pb-3" style="font-size: 13px;">
+                            <ol v-if="item.steps.length > 1" class="mb-0 pl-3">
+                                <li v-for="step in item.steps" :key="step">{{ step }}</li>
+                            </ol>
+                            <p v-else class="mb-0">{{ item.steps[0] }}</p>
+                            <p v-if="item.note" class="text-muted mt-2 mb-0">{{ item.note }}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </template>
+
+        <template v-else>
+        <p>
+            A case walks one problem through nine phases, from naming it to proving what caused it.
+            Each phase ends with a short checklist called a gate, and the case moves on when the gate is met.
+        </p>
+        <p class="text-muted">
+            <strong>Advanced</strong> cases run all nine phases. <strong>Simple</strong> cases are for easy problems:
+            they start at phase 5 and ask for less at each gate.
+        </p>
+
+        <div class="d-flex justify-content-end mb-2">
+            <a href="#" @click.prevent="toggleAll">{{ isEverythingOpen ? "Collapse all" : "Expand all" }}</a>
+        </div>
+
+        <div v-for="stage in stages" :key="stage.key" class="mb-3">
+            <div class="d-flex align-items-baseline mb-1" style="gap: 8px;">
+                <strong><i v-if="stage.isLoop" class="ti ti-refresh mr-1"></i>{{ stage.label }}</strong>
+                <span class="text-muted" style="font-size: 13px;">{{ stage.summary }}</span>
+            </div>
+
+            <div class="list-group mb-0">
+                <div v-for="phase in stage.phases" :key="phase.phase" class="list-group-item p-0">
+                    <a href="#"
+                       class="d-flex align-items-start p-2"
+                       style="gap: 10px; text-decoration: none; color: inherit;"
+                       :aria-expanded="isOpen(phase.phase)"
+                       @click.prevent="toggle(phase.phase)">
+                        <span class="label label-default" style="min-width: 26px;">{{ phase.phase }}</span>
+                        <span style="flex: 1;">
+                            <strong>{{ phase.name }}</strong>
+                            <span v-if="phase.isAutoSkippedInSimpleMode" class="text-muted ml-2" style="font-size: 12px;">Skipped in Simple</span>
+                            <span class="d-block text-muted" style="font-size: 13px;">{{ phase.guidance }}</span>
+                        </span>
+                        <i class="ti text-muted" :class="isOpen(phase.phase) ? 'ti-chevron-up' : 'ti-chevron-down'"></i>
+                    </a>
+
+                    <div v-if="isOpen(phase.phase)" class="px-3 pb-3" style="margin-left: 36px;">
+                        <template v-if="phase.prompts.length">
+                            <div class="mb-1" style="font-size: 13px;"><strong>Work through</strong></div>
+                            <ul class="mb-2" style="font-size: 13px;">
+                                <li v-for="prompt in phase.prompts" :key="prompt">{{ prompt }}</li>
+                            </ul>
+                        </template>
+
+                        <div class="mb-1" style="font-size: 13px;"><strong>To move on</strong></div>
+                        <ul class="mb-0" style="font-size: 13px;">
+                            <li v-for="gate in phase.advancedGates" :key="gate">{{ gate }}</li>
+                        </ul>
+                        <div v-if="simpleDiffers(phase)" class="text-muted mt-2" style="font-size: 13px;">
+                            In Simple mode: {{ phase.simpleGates.join(" ") }}
+                        </div>
+                        <div v-if="phase.phase === 8" class="text-muted mt-2" style="font-size: 13px;">
+                            If the case has a {{ championTerm }}, they sign off on the confirmed explanation before the case moves on.
+                            If nothing is confirmed, loop back to phase 5 for another round.
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="list-group mb-0">
+            <div class="list-group-item p-0">
+                <a href="#"
+                   class="d-flex align-items-start p-2"
+                   style="gap: 10px; text-decoration: none; color: inherit;"
+                   :aria-expanded="isOpen(0)"
+                   @click.prevent="toggle(0)">
+                    <i class="ti ti-compass" style="min-width: 26px; text-align: center;"></i>
+                    <span style="flex: 1;">
+                        <strong>Standing principles</strong>
+                        <span class="d-block text-muted" style="font-size: 13px;">The habits that apply in every phase.</span>
+                    </span>
+                    <i class="ti text-muted" :class="isOpen(0) ? 'ti-chevron-up' : 'ti-chevron-down'"></i>
+                </a>
+                <div v-if="isOpen(0)" class="px-3 pb-3" style="margin-left: 36px; font-size: 13px;">
+                    <ol class="mb-2">
+                        <li v-for="principle in method.principles" :key="principle">{{ principle }}</li>
+                    </ol>
+                    <p class="text-muted mb-2">{{ method.mindsetGuidance }}</p>
+                    <div class="mb-1"><strong>Where to look</strong></div>
+                    <ul class="mb-0">
+                        <li v-for="tip in method.contextualTips" :key="tip">{{ tip }}</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <p class="text-muted mt-3 mb-0" style="font-size: 12px;">
+            A category can have its own names for phases and terms, so a case's board may use different words than these.
+        </p>
+        </template>
+    </Modal>
+</template>
+
+<script setup lang="ts">
+    import { computed, PropType, ref } from "vue";
+    import Modal from "@Obsidian/Controls/modal.obs";
+    import type { MethodOverviewBag, MethodPhaseBag } from "../types.partial";
+
+    type Stage = { key: string; label: string; summary: string; isLoop: boolean; phases: MethodPhaseBag[] };
+
+    const props = defineProps({
+        visible: {
+            type: Boolean,
+            default: false
+        },
+        method: {
+            type: Object as PropType<MethodOverviewBag>,
+            required: true
+        },
+        view: {
+            type: String as PropType<"process" | "howto">,
+            default: "process"
+        }
+    });
+
+    const emit = defineEmits<{
+        (e: "update:visible", value: boolean): void;
+    }>();
+
+    const isVisible = computed({
+        get: () => props.visible,
+        set: value => emit("update:visible", value)
+    });
+
+    const openPhases = ref<number[]>([]);
+    const openQuestions = ref<string[]>([]);
+
+    type HowTo = { question: string; steps: string[]; note?: string };
+
+    const howToGroups: { label: string; items: HowTo[] }[] = [
+        {
+            label: "Finding cases",
+            items: [
+                { question: "Open a new case", steps: ["Click the plus button at the top right of the case list.", "Give it a title, a problem statement, and a category.", "Score the four questions. The scores recommend Simple or Advanced, and you can override that.", "Click Open Case."] },
+                { question: "See only my cases", steps: ["Click the filter icon at the top right of the case list.", "Set My Involvement to My Requests (cases you own) or My Assignments (cases you are on).", "Click Save."], note: "Leave My Involvement blank to see every case you have access to." },
+                { question: "Find a closed case", steps: ["Click the filter icon at the top right of the case list.", "Set Show to Archived, or All to see open and closed cases together.", "Click Save."] },
+                { question: "Search for a case", steps: ["Click the magnifying glass at the top right of the case list and type part of the name. You can also filter any column from its header."] }
+            ]
+        },
+        {
+            label: "Working a case",
+            items: [
+                { question: "Move to the next phase", steps: ["Do what the phase's gate checklist asks for. Each line shows a check when it is met.", "Click Complete Phase."], note: "If the button is greyed out, a line on the checklist is still unmet." },
+                { question: "Go back to an earlier phase", steps: ["Click that phase's number in the row of phases at the top of the board. You can return to where you were the same way."], note: "A phase with a lock has not been reached yet. It opens when the phases before it are complete." },
+                { question: "Go around again when nothing is confirmed", steps: ["On phase 8, click Loop Back. The case returns to phase 5 for another round of facts, hypotheses, and experiments."] },
+                { question: "Ask someone for a statement", steps: ["On the board, find Team and Witnesses and add the person as a Witness.", "On their row, create a statement request and write what you want to know.", "Send it. They get an email and a reminder in Rock with a link to answer."], note: "For someone who is not in Rock, record what they told you on their row instead." },
+                { question: "Turn a Simple case into an Advanced one", steps: ["Open the case.", "Click the three dots at the top right of the board.", "Choose Upgrade to Advanced."], note: "A case can go up to Advanced but never back down." }
+            ]
+        },
+        {
+            label: "Finishing and after",
+            items: [
+                { question: "Close a case", steps: ["Work the case to its last phase.", "Click Run Postmortem and Close.", "Fill in the six postmortem boxes and, if you want a check-in later, a follow-up date."] },
+                { question: "Export a case as a PDF", steps: ["Open the case.", "Click the three dots at the top right of the board.", "Choose Export PDF."] },
+                { question: "Reopen a closed case", steps: ["Find it with Show set to Archived and open it.", "Click the three dots at the top right of the board.", "Choose Reopen."], note: "The case goes back to phase 5, and the phases from there on are worked again." },
+                { question: "Set a case aside without closing it", steps: ["Open the case.", "Click the three dots at the top right of the board.", "Choose Abandon."], note: "Nothing is lost. Open the case and click Resume to pick it back up." },
+                { question: "See who created or last changed a case", steps: ["Open the case, click the three dots at the top right of the board, and choose Audit Details."] }
+            ]
+        }
+    ];
+
+    function toggleQuestion(question: string): void {
+        openQuestions.value = openQuestions.value.includes(question) ? openQuestions.value.filter(q => q !== question) : [...openQuestions.value, question];
+    }
+
+    const championTerm = computed(() => props.method.championTerm || "Champion");
+
+    const stages = computed<Stage[]>(() => [
+        { key: "setup", label: "Set up", summary: "Get the team, the problem, and the timeline straight before investigating.", isLoop: false, phases: props.method.phases.filter(p => p.phase < 5) },
+        { key: "investigate", label: "Investigate", summary: "The loop. Repeat these until a cause is confirmed beyond a reasonable doubt.", isLoop: true, phases: props.method.phases.filter(p => p.phase >= 5 && p.phase <= 8) },
+        { key: "close", label: "Close", summary: "Write up what happened and how to prevent it.", isLoop: false, phases: props.method.phases.filter(p => p.phase > 8) }
+    ]);
+
+    const allKeys = computed(() => [...props.method.phases.map(p => p.phase), 0]);
+
+    const isEverythingOpen = computed(() => allKeys.value.every(k => openPhases.value.includes(k)));
+
+    function isOpen(phase: number): boolean {
+        return openPhases.value.includes(phase);
+    }
+
+    function toggle(phase: number): void {
+        openPhases.value = isOpen(phase) ? openPhases.value.filter(p => p !== phase) : [...openPhases.value, phase];
+    }
+
+    function toggleAll(): void {
+        openPhases.value = isEverythingOpen.value ? [] : [...allKeys.value];
+    }
+
+    function simpleDiffers(phase: MethodPhaseBag): boolean {
+        return !phase.isAutoSkippedInSimpleMode && phase.simpleGates.join("|") !== phase.advancedGates.join("|");
+    }
+</script>

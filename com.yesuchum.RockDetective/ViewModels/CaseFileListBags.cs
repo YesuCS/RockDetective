@@ -18,6 +18,40 @@ namespace com.yesuchum.RockDetective.ViewModels
         public string TerminologySettingsUrl { get; set; }
 
         public string SkillSettingsUrl { get; set; }
+
+        public MethodOverviewBag Method { get; set; } = new MethodOverviewBag();
+    }
+
+    public class MethodOverviewBag
+    {
+        public List<MethodPhaseBag> Phases { get; set; } = new List<MethodPhaseBag>();
+
+        public List<string> Principles { get; set; } = new List<string>();
+
+        public string MindsetGuidance { get; set; }
+
+        public List<string> ContextualTips { get; set; } = new List<string>();
+
+        public string ChampionTerm { get; set; }
+    }
+
+    public class MethodPhaseBag
+    {
+        public int Phase { get; set; }
+
+        public string Name { get; set; }
+
+        public string Guidance { get; set; }
+
+        public List<string> Prompts { get; set; } = new List<string>();
+
+        public bool IsAutoSkippedInSimpleMode { get; set; }
+
+        public bool IsLoopPhase { get; set; }
+
+        public List<string> AdvancedGates { get; set; } = new List<string>();
+
+        public List<string> SimpleGates { get; set; } = new List<string>();
     }
 
     public class CaseFileListItemBag
