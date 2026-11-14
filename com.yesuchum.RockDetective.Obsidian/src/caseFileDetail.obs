@@ -10,8 +10,7 @@
 
         <Panel type="block" class="rd-board" :headerSecondaryActions="headerSecondaryActions">
             <template #title>
-                <span class="text-muted" :title="issueDateTitle">{{ formatDate(caseFile.issueDate) }}</span>
-                <span class="text-muted mx-2">|</span>{{ caseFile.title }}<span class="text-muted mx-2">|</span>
+                {{ caseFile.title }}<span class="text-muted mx-2">|</span>
                 <span class="label" :class="statusLabelClass">{{ statusNames[caseFile.status] }}</span>
             </template>
             <template #headerActions>
@@ -308,11 +307,6 @@
             default: return "label-info";
         }
     });
-
-    const issueDateTitle = computed(() =>
-        caseFile.value?.entries.some(e => e.entryType === 1 && e.timelineEventType === 0)
-            ? "When the problem started, from the timeline"
-            : "When this was opened. Add a Problem Start to the timeline to show when the problem began.");
 
     const hasChampionSignOff = computed(() => {
         const state = caseFile.value?.phaseStates.find(s => s.phase === 8);

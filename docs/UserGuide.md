@@ -42,7 +42,7 @@ The migration does not set any page security, so the pages inherit it from Insta
 
 ## The case list
 
-The list leads with **Date | Name | Status**, the same way the Case Board header does, and sorts with the newest problem first. The date is when the problem started, taken from the Problem Start event on the case's timeline. Until a case has one, it shows the day the case was opened. Once you have a lot of cases, the date is the fastest way to find the one you're after.
+The list leads with **Date | Name | Status** and sorts with the newest problem first. The date is when the problem started, taken from the Problem Start event on the case's timeline. Until a case has one, it shows the day the case was opened. Once you have a lot of cases, the date is the fastest way to find the one you're after.
 
 ## Opening a case
 
@@ -57,7 +57,7 @@ Simple mode collapses the flow for easy problems. The case starts at the Fact Li
 
 ### The header
 
-The top of the board reads **Date | Name | Status**. The date is when the problem started, taken from the Problem Start event on the timeline. Until the case has one, it shows the day the case was opened; hover over it to see which you're looking at. The category and mode sit at the right.
+The top of the board reads **Name | Status**, with the category and mode at the right. The date lives on the case list and in **Audit Details**, so the header stays easy to read.
 
 ### Phases
 
