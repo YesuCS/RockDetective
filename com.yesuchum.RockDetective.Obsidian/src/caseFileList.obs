@@ -11,6 +11,7 @@
                     class="btn btn-sm d-inline-flex align-items-center"
                     style="height: 34px;"
                     :class="activeView === view.key ? 'btn-primary' : 'btn-default'"
+                    :title="activeView === view.key ? 'Click again to show every case you can see' : ''"
                     @click="onViewChanged(view.key)">
                 {{ view.label }}
                 <span v-if="view.badge" class="badge ml-1">{{ view.badge }}</span>
@@ -37,19 +38,19 @@
           gridSettings
           :gridSettingsActive="hasSettingsFilters"
           :showLaunchWorkflow="false"
-          :onAddItem="config.canAddCase && activeView !== 'Archive' ? onAddCase : undefined"
+          :onAddItem="config.canAddCase && !isArchivedOnly ? onAddCase : undefined"
           @gridSettingsClick="onGridSettingsClick"
           @selectItem="onSelectItem">
         <DateColumn name="issueDate" title="Date" field="issueDate" :filter="dateValueFilter" width="120px" visiblePriority="xs" />
         <TextColumn name="title" title="Name" field="title" :filter="textValueFilter" visiblePriority="xs" />
-        <TextColumn v-if="activeView !== 'Archive'" name="status" title="Status" field="status" :filter="pickExistingValueFilter" width="150px" visiblePriority="xs" />
+        <TextColumn v-if="!isArchivedOnly" name="status" title="Status" field="status" :filter="pickExistingValueFilter" width="150px" visiblePriority="xs" />
         <TextColumn name="categoryName" title="Category" field="categoryName" :filter="pickExistingValueFilter" width="140px" visiblePriority="md" />
-        <TextColumn v-if="activeView !== 'Archive'" name="phase" title="Phase" field="phase" :filter="pickExistingValueFilter" width="140px" visiblePriority="md" />
+        <TextColumn v-if="!isArchivedOnly" name="phase" title="Phase" field="phase" :filter="pickExistingValueFilter" width="140px" visiblePriority="md" />
         <TextColumn name="mode" title="Mode" field="mode" :filter="pickExistingValueFilter" width="110px" visiblePriority="md" />
         <TextColumn name="ownerName" title="Owner" field="ownerName" :filter="pickExistingValueFilter" width="150px" visiblePriority="md" />
-        <TextColumn v-if="activeView === 'Archive'" name="solutionSummary" title="Solution" field="solutionSummary" :filter="textValueFilter" visiblePriority="sm" />
-        <DateColumn v-if="activeView === 'Archive'" name="closedDateTime" title="Closed" field="closedDateTime" :filter="dateValueFilter" width="120px" visiblePriority="sm" />
-        <NumberColumn v-if="activeView !== 'Archive'" name="ageDays" title="Age (days)" field="ageDays" width="100px" visiblePriority="lg" />
+        <TextColumn v-if="isArchivedOnly" name="solutionSummary" title="Solution" field="solutionSummary" :filter="textValueFilter" visiblePriority="sm" />
+        <DateColumn v-if="gridSettings.show !== 'Active'" name="closedDateTime" title="Closed" field="closedDateTime" :filter="dateValueFilter" width="120px" visiblePriority="sm" />
+        <NumberColumn v-if="gridSettings.show === 'Active'" name="ageDays" title="Age (days)" field="ageDays" width="100px" visiblePriority="lg" />
         <Column name="flags" title="" width="60px" visiblePriority="xs">
             <template #format="{ row }">
                 <i v-if="row.hasOverdueWitness" class="ti ti-clock-exclamation text-warning" title="A witness statement request is overdue"></i>
@@ -132,23 +133,28 @@
     const allCases = ref<CaseFileListItemBag[]>(config.cases ?? []);
     const archiveCases = ref<CaseFileListItemBag[]>([]);
     const archiveLoaded = ref(false);
-    const activeView = ref<string>(config.defaultView || "MyRequests");
+    const activeView = ref<string>(config.defaultView === "All" ? "" : (config.defaultView || "MyRequests"));
 
     const isGridSettingsVisible = ref(false);
     const gridSettings = ref<GridSettingsOptions>({
         category: preferences.getValue("filter-category"),
         status: preferences.getValue("filter-status"),
-        mode: preferences.getValue("filter-mode")
+        mode: preferences.getValue("filter-mode"),
+        show: preferences.getValue("filter-show") || "Active"
     });
 
+    const isArchivedOnly = computed(() => gridSettings.value.show === "Archived");
+
     const hasSettingsFilters = computed(() =>
-        !!gridSettings.value.category || !!gridSettings.value.status || !!gridSettings.value.mode);
+        !!gridSettings.value.category || !!gridSettings.value.status || !!gridSettings.value.mode || gridSettings.value.show !== "Active");
 
     watch(gridSettings, async () => {
         preferences.setValue("filter-category", gridSettings.value.category ?? "");
         preferences.setValue("filter-status", gridSettings.value.status ?? "");
         preferences.setValue("filter-mode", gridSettings.value.mode ?? "");
+        preferences.setValue("filter-show", gridSettings.value.show ?? "Active");
         await preferences.save();
+        await loadArchiveIfNeeded();
     });
 
     function onGridSettingsClick(): void {
@@ -157,33 +163,34 @@
 
     const views = computed(() => [
         { key: "MyRequests", label: "My Requests", badge: allCases.value.filter(c => c.isMine).length || undefined },
-        { key: "MyAssignments", label: "My Assignments", badge: allCases.value.filter(c => c.isAssignedToMe).length || undefined },
-        { key: "All", label: "All", badge: undefined },
-        { key: "Archive", label: "Archive", badge: undefined }
+        { key: "MyAssignments", label: "My Assignments", badge: allCases.value.filter(c => c.isAssignedToMe).length || undefined }
     ]);
 
     const visibleCases = computed<CaseFileListItemBag[]>(() => {
+        const settings = gridSettings.value;
         let cases: CaseFileListItemBag[];
 
-        if (activeView.value === "Archive") {
+        if (settings.show === "Archived") {
             cases = archiveCases.value;
         }
-        else if (activeView.value === "MyRequests") {
-            cases = allCases.value.filter(c => c.isMine);
-        }
-        else if (activeView.value === "MyAssignments") {
-            cases = allCases.value.filter(c => c.isAssignedToMe);
+        else if (settings.show === "All") {
+            cases = [...allCases.value, ...archiveCases.value];
         }
         else {
             cases = allCases.value;
         }
 
-        const settings = gridSettings.value;
+        if (activeView.value === "MyRequests") {
+            cases = cases.filter(c => c.isMine);
+        }
+        else if (activeView.value === "MyAssignments") {
+            cases = cases.filter(c => c.isAssignedToMe);
+        }
 
         if (settings.category) {
             cases = cases.filter(c => c.categoryName === settings.category);
         }
-        if (settings.status && activeView.value !== "Archive") {
+        if (settings.status && settings.show !== "Archived") {
             cases = cases.filter(c => c.status === settings.status);
         }
         if (settings.mode) {
@@ -204,10 +211,12 @@
     refreshGrid();
     watch(visibleCases, refreshGrid);
 
-    async function onViewChanged(view: string): Promise<void> {
-        activeView.value = view;
+    function onViewChanged(view: string): void {
+        activeView.value = activeView.value === view ? "" : view;
+    }
 
-        if (view === "Archive" && !archiveLoaded.value) {
+    async function loadArchiveIfNeeded(): Promise<void> {
+        if (gridSettings.value.show !== "Active" && !archiveLoaded.value) {
             const result = await invokeBlockAction<ArchiveSearchResultBag>("SearchArchive", { searchTerm: null });
             if (result.isSuccess && result.data) {
                 archiveCases.value = result.data.cases ?? [];
@@ -219,6 +228,8 @@
             }
         }
     }
+
+    loadArchiveIfNeeded();
 
     const caseFileEntityTypeGuid = "3B58FD75-80F4-47F7-BAE9-C401B55D89AA";
 

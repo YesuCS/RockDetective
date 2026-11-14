@@ -42,6 +42,10 @@ People in the **Rock Detective Users** role can open the case list and the Case 
 
 ## The case list
 
+Two buttons at the top narrow the list to your own work: **My Requests** for cases you own, and **My Assignments** for cases you are on. Click the one that is lit to turn it off and see every case you have access to.
+
+The filter icon on the grid opens **Case Filters**. **Show** picks which cases are listed: **Active** (the default) for cases still being worked, **Archived** for closed cases, or **All** for both. Category, Status, and Mode narrow it further. Your filters are remembered.
+
 The list leads with **Date | Name | Status** and sorts with the newest problem first. The date is when the problem started, taken from the Problem Start event on the case's timeline. Until a case has one, it shows the day the case was opened. Once you have a lot of cases, the date is the fastest way to find the one you're after.
 
 ## Opening a case
@@ -145,9 +149,9 @@ An unanswered check goes out again a week later. The **Fix Held** button on a cl
 
 ### Archive and abandoned cases
 
-Closed cases live on the **Archive** tab of the case list, which shows the solution and the closed date. The other tabs show cases that are still open.
+Closed cases are archived. To see them, open **Case Filters** on the case list and set **Show** to **Archived**, which lists the solution and the closed date. **All** shows open and closed cases together.
 
-Any case that isn't closed can be **abandoned**. It stays on the other tabs, locked, with everything preserved and no postmortem. **Resume Case** unlocks it where it left off.
+Any case that isn't closed can be **abandoned**. It stays with the active cases, locked, with everything preserved and no postmortem. **Resume Case** unlocks it where it left off.
 
 ### Export PDF
 
@@ -243,8 +247,8 @@ The five minimums and the attestation setting sit under the **Gate Requirements*
 | Setting | Default | What it does |
 |---|---|---|
 | Detail Page | Case Board | The page a case opens on. Required. |
-| Default View | My Requests | The tab shown first: My Requests, My Assignments, or All. |
-| Show All View To Everyone | Off | Widens the All tab past entity security. Opening a case still checks its own security. |
+| Default View | My Requests | What the list shows first: My Requests, My Assignments, or Every Case (neither button lit). |
+| Show All View To Everyone | Off | With neither button lit, widens the list past entity security. Opening a case still checks its own security. |
 
 ### Global attributes
 
@@ -267,4 +271,4 @@ Case files use standard Rock entity security. Rock Detective Users can view and 
 - **Editing.** Edit security on the case lets you change it. The owner can also work their own case on the Case Board without it. Other participants can only view.
 - **Deleting.** The list's delete button needs Edit on the case and removes everything under it.
 - **Witness page.** Only the person the request was sent to, or someone with Edit on the case, can open a statement request.
-- **List tabs.** My Requests shows cases you own. My Assignments adds the cases where you are a participant. All shows every open case you can view.
+- **List buttons.** My Requests shows cases you own. My Assignments shows the cases where you are a participant. With neither lit, the list shows every case you can view.

@@ -31,7 +31,7 @@ The five blocks live under Admin Tools > Installed Plugins > Rock Detective:
 
 | Block | Page | Role |
 |---|---|---|
-| Case File List | Rock Detective | Tabs for My Requests, My Assignments, All, and Archive; new case modal; delete. |
+| Case File List | Rock Detective | My Requests and My Assignments toggles; Case Filters with Show (All, Active, Archived), category, status, and mode; new case modal; delete. |
 | Case Board | Case Board | The workspace for one case. Takes a `CaseFile` page parameter (IdKey or Guid). |
 | Witness Statement Entry | Witness Statement | Where a witness submits or declines a request. Takes a `Statement` page parameter. |
 | Terminology Settings | Terminology Settings | Where an administrator renames phases, terms, and gate wording for all categories or one. |

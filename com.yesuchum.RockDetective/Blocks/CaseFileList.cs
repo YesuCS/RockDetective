@@ -30,7 +30,7 @@ namespace com.yesuchum.RockDetective.Blocks
 
     [CustomDropdownListField( "Default View",
         Description = "The view shown when the block first loads.",
-        ListSource = "MyRequests^My Requests,MyAssignments^My Assignments,All^All",
+        ListSource = "MyRequests^My Requests,MyAssignments^My Assignments,All^Every Case",
         DefaultValue = "MyRequests",
         IsRequired = true,
         Order = 1,

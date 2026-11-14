@@ -3,6 +3,11 @@
         <SectionHeader title="Filters" />
         <div class="row">
             <div class="col-md-4">
+                <DropDownList v-model="show" label="Show" :items="showItems" :showBlankItem="false" help="Active cases are still being worked. Archived cases are closed." />
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-md-4">
                 <DropDownList v-model="category" label="Category" :items="categoryItems" />
             </div>
             <div class="col-md-4">
@@ -27,6 +32,7 @@
         category: string;
         status: string;
         mode: string;
+        show: string;
     };
 
     const props = defineProps({
@@ -57,12 +63,20 @@
     const category = ref(props.modelValue.category);
     const status = ref(props.modelValue.status);
     const mode = ref(props.modelValue.mode);
+    const show = ref(props.modelValue.show || "Active");
 
     watch(() => props.modelValue, value => {
         category.value = value.category;
         status.value = value.status;
         mode.value = value.mode;
+        show.value = value.show || "Active";
     });
+
+    const showItems: ListItemBag[] = [
+        { value: "All", text: "All" },
+        { value: "Active", text: "Active" },
+        { value: "Archived", text: "Archived" }
+    ];
 
     const categoryItems = computed<ListItemBag[]>(() =>
         props.categories.map(c => ({ value: c.name, text: c.name })));
@@ -80,7 +94,8 @@
         emit("update:modelValue", {
             category: category.value,
             status: status.value,
-            mode: mode.value
+            mode: mode.value,
+            show: show.value
         });
         isVisible.value = false;
     }
