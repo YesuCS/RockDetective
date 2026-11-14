@@ -303,7 +303,7 @@ namespace com.yesuchum.RockDetective.Data
             return new CaseFileBag
             {
                 IdKey = caseFile.IdKey,
-                CaseNumber = caseFile.Id.ToString(),
+                CaseNumber = caseFile.IdKey,
                 Title = caseFile.Title,
                 ProblemStatement = caseFile.ProblemStatement,
                 CategoryGuid = caseFile.Category?.Guid.ToString(),

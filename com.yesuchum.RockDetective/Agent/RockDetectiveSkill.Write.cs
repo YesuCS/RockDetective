@@ -23,6 +23,43 @@ namespace com.yesuchum.RockDetective.Agent
             }
         }
 
+        [Description( "For a witness: lists the statement requests that are waiting on the signed-in person, with the question being asked. It shows nothing else about the case." )]
+        [AgentPurpose( "Shows a witness what they have been asked." )]
+        [AgentToolGuid( "6B40FC5E-8D1D-4E3A-9C47-2F1D3C4B5A61" )]
+        public AgentToolResult ListMyStatementRequests()
+        {
+            return Run( person => CaseWorkflowService.ListMyStatementRequests( person ) );
+        }
+
+        [Description( "For a witness: submits the signed-in person's answer to a statement request that was addressed to them. It needs no other access to the case." )]
+        [AgentPurpose( "Lets a witness answer a statement request." )]
+        [AgentGuardrail( "Submit the person's own words. Do not add to or reword what they said." )]
+        [AgentToolGuid( "7C510D6F-9E2E-4F4B-8D58-302E4D5C6B72" )]
+        public AgentToolResult SubmitStatement(
+            [Description( "The IdKey of the request, from ListMyStatementRequests." )]
+            string statementIdKey,
+
+            [Description( "What the person saw or knows, in their own words." )]
+            string statement,
+
+            [Description( "An optional link that goes with the statement." )]
+            string url = null )
+        {
+            return Run( person => CaseWorkflowService.SubmitStatement( statementIdKey, statement, url, person ) );
+        }
+
+        [Description( "For a witness: declines a statement request that was addressed to the signed-in person, with an optional reason." )]
+        [AgentPurpose( "Lets a witness decline a statement request." )]
+        [AgentToolGuid( "8D621E70-AF3F-405C-9E69-413F5E6D7C83" )]
+        public AgentToolResult DeclineStatement(
+            [Description( "The IdKey of the request, from ListMyStatementRequests." )]
+            string statementIdKey,
+
+            string reason = null )
+        {
+            return Run( person => CaseWorkflowService.DeclineStatement( statementIdKey, reason, person ) );
+        }
+
         [Description( "Lists the case categories a case can be opened under. Each category can have its own names for phases and terms." )]
         [AgentPurpose( "Finds the category to open a case under." )]
         [AgentToolGuid( "6A2F0C5E-8B1D-4E3A-9C47-1F0D2B3A4C51" )]

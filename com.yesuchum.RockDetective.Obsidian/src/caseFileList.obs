@@ -34,7 +34,7 @@
           :onAddItem="config.canAddCase && activeView !== 'Archive' ? onAddCase : undefined"
           @gridSettingsClick="onGridSettingsClick"
           @selectItem="onSelectItem">
-        <TextColumn name="caseNumber" title="Case #" field="caseNumber" :filter="textValueFilter" width="120px" visiblePriority="xs" />
+        <TextColumn name="caseNumber" title="Case" field="caseNumber" :filter="textValueFilter" width="130px" visiblePriority="xs" />
         <TextColumn name="title" title="Title" field="title" :filter="textValueFilter" visiblePriority="xs" />
         <TextColumn name="categoryName" title="Category" field="categoryName" :filter="pickExistingValueFilter" width="140px" visiblePriority="md" />
         <TextColumn v-if="activeView !== 'Archive'" name="status" title="Status" field="status" :filter="pickExistingValueFilter" width="150px" visiblePriority="xs" />

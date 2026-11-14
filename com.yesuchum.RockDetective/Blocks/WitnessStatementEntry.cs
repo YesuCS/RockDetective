@@ -66,7 +66,7 @@ namespace com.yesuchum.RockDetective.Blocks
                 }
 
                 box.ParticipantIdKey = statement.IdKey;
-                box.CaseNumber = caseFile.Id.ToString();
+                box.CaseNumber = caseFile.IdKey;
                 box.CaseTitle = caseFile.Title;
                 box.RequestPrompt = statement.RequestPrompt;
                 box.IsAlreadySubmitted = statement.RequestStatus == StatementRequestStatus.Submitted;

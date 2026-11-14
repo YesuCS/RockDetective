@@ -648,7 +648,7 @@ namespace com.yesuchum.RockDetective.Rest
                     response.Content.Headers.ContentType = new MediaTypeHeaderValue( "application/pdf" );
                     response.Content.Headers.ContentDisposition = new ContentDispositionHeaderValue( "attachment" )
                     {
-                        FileName = $"Case-{caseFile.Id}.pdf"
+                        FileName = $"Case-{caseFile.IdKey}.pdf"
                     };
 
                     return response;

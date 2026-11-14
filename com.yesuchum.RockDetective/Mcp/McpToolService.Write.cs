@@ -36,6 +36,30 @@ namespace com.yesuchum.RockDetective.Mcp
         private static IEnumerable<McpToolDefinition> GetWriteTools()
         {
             yield return Tool(
+                "list_my_statement_requests",
+                "For a witness: lists the statement requests that are waiting on the signed-in person, with the question being asked. It shows nothing else about the case.",
+                string.Empty,
+                null,
+                ( a, p ) => CaseWorkflowService.ListMyStatementRequests( p ) );
+
+            yield return Tool(
+                "submit_statement",
+                "For a witness: submits the signed-in person's answer to a statement request that was addressed to them. It needs no other access to the case.",
+                @"""statementIdKey"": { ""type"": ""string"", ""description"": ""The IdKey of the request, from list_my_statement_requests."" },
+                  ""statement"": { ""type"": ""string"", ""description"": ""What the person saw or knows, in their own words."" },
+                  ""url"": { ""type"": ""string"", ""description"": ""An optional link that goes with the statement."" }",
+                "statementIdKey,statement",
+                ( a, p ) => CaseWorkflowService.SubmitStatement( a.Value<string>( "statementIdKey" ), a.Value<string>( "statement" ), a.Value<string>( "url" ), p ) );
+
+            yield return Tool(
+                "decline_statement",
+                "For a witness: declines a statement request that was addressed to the signed-in person, with an optional reason.",
+                @"""statementIdKey"": { ""type"": ""string"", ""description"": ""The IdKey of the request, from list_my_statement_requests."" },
+                  ""reason"": { ""type"": ""string"" }",
+                "statementIdKey",
+                ( a, p ) => CaseWorkflowService.DeclineStatement( a.Value<string>( "statementIdKey" ), a.Value<string>( "reason" ), p ) );
+
+            yield return Tool(
                 "list_categories",
                 "Lists the case categories a case can be opened under. Each category can have its own names for phases and terms.",
                 string.Empty,

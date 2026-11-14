@@ -89,7 +89,7 @@ namespace com.yesuchum.RockDetective.Jobs
 
                     var mergeFields = Rock.Lava.LavaHelper.GetCommonMergeFields( null, person );
                     mergeFields.Add( "Person", person );
-                    mergeFields.Add( "CaseNumber", caseFile.Id.ToString() );
+                    mergeFields.Add( "CaseNumber", caseFile.IdKey );
                     mergeFields.Add( "CaseTitle", caseFile.Title );
                     mergeFields.Add( "RequestPrompt", statement.RequestPrompt );
                     mergeFields.Add( "StatementLink", statementLink );

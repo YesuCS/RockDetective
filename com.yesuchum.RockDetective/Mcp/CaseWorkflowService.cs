@@ -538,6 +538,127 @@ namespace com.yesuchum.RockDetective.Mcp
 
         #endregion
 
+        #region Witness
+
+        public static object ListMyStatementRequests( Rock.Model.Person person )
+        {
+            RequirePerson( person );
+
+            var aliasIds = person.Aliases.Select( a => a.Id ).ToList();
+
+            using ( var detectiveContext = new RockDetectiveContext() )
+            {
+                var requests = detectiveContext.CaseStatements
+                    .AsNoTracking()
+                    .Where( s => ( s.RequestStatus == StatementRequestStatus.Requested || s.RequestStatus == StatementRequestStatus.Reminded )
+                        && s.Participant.PersonAliasId.HasValue
+                        && aliasIds.Contains( s.Participant.PersonAliasId.Value ) )
+                    .OrderBy( s => s.SentDateTime )
+                    .ToList();
+
+                var caseIds = requests.Select( s => s.CaseFileId ).Distinct().ToList();
+                var cases = detectiveContext.CaseFiles.AsNoTracking().Where( c => caseIds.Contains( c.Id ) ).ToList();
+                var owners = CaseMapper.GetAliasInfo( cases.Select( c => c.OwnerPersonAliasId ) );
+
+                return requests.Select( s =>
+                {
+                    var caseFile = cases.First( c => c.Id == s.CaseFileId );
+
+                    return new
+                    {
+                        StatementIdKey = s.IdKey,
+                        Case = caseFile.IdKey,
+                        CaseTitle = caseFile.Title,
+                        Question = s.RequestPrompt,
+                        AskedBy = owners.ContainsKey( caseFile.OwnerPersonAliasId ) ? owners[caseFile.OwnerPersonAliasId].FullName : null,
+                        AskedOn = s.SentDateTime?.ToString( "s" )
+                    };
+                } ).ToList();
+            }
+        }
+
+        public static object SubmitStatement( string statementIdKey, string statement, string url, Rock.Model.Person person )
+        {
+            if ( statement.IsNullOrWhiteSpace() )
+            {
+                throw new McpToolException( "Please give a statement to submit." );
+            }
+
+            return WithMyStatementRequest( statementIdKey, person, ( detectiveContext, request ) =>
+            {
+                request.Statement = statement.Trim();
+                request.Url = url.Truncate( 2000 );
+                request.RequestStatus = StatementRequestStatus.Submitted;
+
+                return "Your statement was submitted. Thank you.";
+            } );
+        }
+
+        public static object DeclineStatement( string statementIdKey, string reason, Rock.Model.Person person )
+        {
+            return WithMyStatementRequest( statementIdKey, person, ( detectiveContext, request ) =>
+            {
+                request.Statement = reason.IsNotNullOrWhiteSpace() ? $"Declined: {reason.Trim()}" : null;
+                request.RequestStatus = StatementRequestStatus.Declined;
+
+                return "The request was declined.";
+            } );
+        }
+
+        private static object WithMyStatementRequest( string statementIdKey, Rock.Model.Person person, Func<RockDetectiveContext, Model.CaseStatement, string> action )
+        {
+            RequirePerson( person );
+
+            using ( var detectiveContext = new RockDetectiveContext() )
+            {
+                var statementId = IdHasher.Instance.GetId( statementIdKey ?? string.Empty );
+                var request = statementId.HasValue ? new CaseStatementService( detectiveContext ).Get( statementId.Value ) : null;
+                var participant = request != null ? new CaseParticipantService( detectiveContext ).Get( request.ParticipantId ) : null;
+                var caseFile = request != null ? new CaseFileService( detectiveContext ).Get( request.CaseFileId ) : null;
+
+                var isAddressedToPerson = participant?.PersonAliasId != null && person.Aliases.Any( a => a.Id == participant.PersonAliasId.Value );
+
+                if ( request == null || participant == null || caseFile == null
+                    || ( !isAddressedToPerson && !caseFile.IsAuthorized( Rock.Security.Authorization.EDIT, person ) ) )
+                {
+                    throw new McpToolException( "That statement request was not found, or it was not addressed to you." );
+                }
+
+                if ( request.RequestStatus == StatementRequestStatus.Submitted )
+                {
+                    throw new McpToolException( "A statement was already submitted for this request." );
+                }
+
+                if ( request.RequestStatus == StatementRequestStatus.Declined )
+                {
+                    throw new McpToolException( "This request was already declined." );
+                }
+
+                if ( request.RequestStatus != StatementRequestStatus.Requested
+                    && request.RequestStatus != StatementRequestStatus.Reminded
+                    && request.RequestStatus != StatementRequestStatus.Draft )
+                {
+                    throw new McpToolException( "This request is not open for a response." );
+                }
+
+                var message = action( detectiveContext, request );
+
+                request.SubmittedDateTime = RockDateTime.Now;
+                request.ModifiedDateTime = RockDateTime.Now;
+                request.ModifiedByPersonAliasId = person.PrimaryAliasId;
+                detectiveContext.SaveChanges();
+
+                if ( participant.PersonAliasId.HasValue )
+                {
+                    WitnessReminderHelper.CompleteReminders( request.Id, participant.PersonAliasId.Value );
+                }
+
+                return new { StatementIdKey = request.IdKey, Status = request.RequestStatus.ToString(), Message = message };
+            }
+        }
+
+        #endregion
+
         #region Phases
 
         public static object SavePhaseNotes( string caseIdKey, int? phase, string notes, Rock.Model.Person person )
@@ -825,7 +946,7 @@ namespace com.yesuchum.RockDetective.Mcp
             return new
             {
                 CaseIdKey = caseFile.IdKey,
-                CaseNumber = caseFile.Id.ToString(),
+                CaseNumber = caseFile.IdKey,
                 caseFile.Title,
                 Status = caseFile.Status.ToString(),
                 Mode = caseFile.Mode.ToString(),

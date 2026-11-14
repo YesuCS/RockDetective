@@ -1287,7 +1287,7 @@ namespace com.yesuchum.RockDetective.Blocks
 
                 var mergeFields = Rock.Lava.LavaHelper.GetCommonMergeFields( null, person );
                 mergeFields.Add( "Person", person );
-                mergeFields.Add( "CaseNumber", caseFile.Id.ToString() );
+                mergeFields.Add( "CaseNumber", caseFile.IdKey );
                 mergeFields.Add( "CaseTitle", caseFile.Title );
                 mergeFields.Add( "RequestPrompt", statement.RequestPrompt );
                 mergeFields.Add( "RequestorName", RequestContext.CurrentPerson?.FullName ?? "A case owner" );
@@ -1562,7 +1562,7 @@ namespace com.yesuchum.RockDetective.Blocks
 
                     return ActionOk( new PdfResultBag
                     {
-                        FileName = $"Case-{caseFile.Id}.pdf",
+                        FileName = $"Case-{caseFile.IdKey}.pdf",
                         Base64 = Convert.ToBase64String( memoryStream.ToArray() )
                     } );
                 }

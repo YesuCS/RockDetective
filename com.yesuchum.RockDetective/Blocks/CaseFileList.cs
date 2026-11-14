@@ -188,7 +188,7 @@ namespace com.yesuchum.RockDetective.Blocks
                     items.Add( new CaseFileListItemBag
                     {
                         IdKey = caseFile.IdKey,
-                        CaseNumber = caseFile.Id.ToString(),
+                        CaseNumber = caseFile.IdKey,
                         Title = caseFile.Title,
                         CategoryName = caseFile.Category?.Name,
                         Status = caseFile.Status.ToString().SplitCase(),
@@ -314,7 +314,7 @@ namespace com.yesuchum.RockDetective.Blocks
                 return ActionOk( new NewCaseResultBag
                 {
                     IdKey = caseFile.IdKey,
-                    CaseNumber = caseFile.Id.ToString(),
+                    CaseNumber = caseFile.IdKey,
                     DetailUrl = detailUrl
                 } );
             }
