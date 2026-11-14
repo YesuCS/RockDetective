@@ -56,6 +56,8 @@ namespace com.yesuchum.RockDetective.ViewModels
 
         public int CurrentPhase { get; set; }
 
+        public int FurthestPhase { get; set; }
+
         public string OwnerName { get; set; }
 
         public string OwnerPersonAliasGuid { get; set; }

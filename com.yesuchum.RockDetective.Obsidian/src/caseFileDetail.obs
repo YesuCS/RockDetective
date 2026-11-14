@@ -18,26 +18,11 @@
                 <span class="label label-default mr-2">{{ caseFile.mode === 1 ? "Advanced" : "Simple" }}</span>
             </template>
 
-            <div class="mb-3 d-flex flex-wrap" style="gap: 8px;">
-                <RockButton v-if="canEdit && caseFile.mode === 0 && !isLocked" :btnType="BtnType.Default" :btnSize="BtnSize.Small" @click="onUpgradeMode">
-                    <i class="ti ti-arrow-up-right mr-1"></i>Upgrade to Advanced
-                </RockButton>
-                <RockButton :btnType="BtnType.Default" :btnSize="BtnSize.Small" :disabled="isExportingPdf" @click="onExportPdf">
-                    <i class="ti ti-file-type-pdf mr-1"></i>{{ isExportingPdf ? "Generating..." : "Export PDF" }}
-                </RockButton>
-                <RockButton v-if="canEdit && !isLocked && caseFile.currentPhase === 9" :btnType="BtnType.Primary" :btnSize="BtnSize.Small" @click="isCloseModalOpen = true">
-                    <i class="ti ti-archive mr-1"></i>Close {{ t("CaseFile") }}
-                </RockButton>
-                <RockButton v-if="canEdit && !isLocked" :btnType="BtnType.Default" :btnSize="BtnSize.Small" @click="onAbandon">
-                    <i class="ti ti-player-pause mr-1"></i>Abandon {{ t("CaseFile") }}
-                </RockButton>
-                <RockButton v-if="canEdit && isAbandoned" :btnType="BtnType.Primary" :btnSize="BtnSize.Small" @click="onResume">
+            <div v-if="canEdit && (isAbandoned || isClosed)" class="mb-3 d-flex flex-wrap" style="gap: 8px;">
+                <RockButton v-if="isAbandoned" :btnType="BtnType.Primary" :btnSize="BtnSize.Small" @click="onResume">
                     <i class="ti ti-player-play mr-1"></i>Resume {{ t("CaseFile") }}
                 </RockButton>
-                <RockButton v-if="canEdit && isClosed" :btnType="BtnType.Default" :btnSize="BtnSize.Small" @click="onReopen">
-                    <i class="ti ti-folder-open mr-1"></i>Reopen {{ t("CaseFile") }}
-                </RockButton>
-                <RockButton v-if="canEdit && isClosed && caseFile.followUpDate && !caseFile.followUpConfirmedDateTime" :btnType="BtnType.Success" :btnSize="BtnSize.Small" @click="onConfirmFollowUp">
+                <RockButton v-if="isClosed && caseFile.followUpDate && !caseFile.followUpConfirmedDateTime" :btnType="BtnType.Success" :btnSize="BtnSize.Small" @click="onConfirmFollowUp">
                     <i class="ti ti-checks mr-1"></i>Fix Held
                 </RockButton>
             </div>
@@ -53,6 +38,7 @@
             <PhaseStepper :definitions="phaseDefinitions"
                           :phaseStates="caseFile.phaseStates"
                           :currentPhase="caseFile.currentPhase"
+                          :furthestPhase="caseFile.furthestPhase ?? 9"
                           :isSimpleMode="caseFile.mode === 0"
                           :isJumpRestricted="config.isPhaseJumpingRestricted"
                           @phaseSelected="onPhaseSelected" />
@@ -271,9 +257,34 @@
     const headerSecondaryActions = computed<PanelAction[]>(() => {
         const actions: PanelAction[] = [];
 
+        if (!caseFile.value?.idKey) {
+            return actions;
+        }
+
+        actions.push({
+            type: "default",
+            iconCssClass: "ti ti-file-type-pdf",
+            title: isExportingPdf.value ? "Generating PDF..." : "Export PDF",
+            disabled: isExportingPdf.value,
+            handler: () => onExportPdf()
+        });
+
+        if (canEdit && !isLocked.value && caseFile.value.mode === 0) {
+            actions.push({ type: "default", iconCssClass: "ti ti-arrow-up-right", title: "Upgrade to Advanced", handler: () => onUpgradeMode() });
+        }
+
+        if (canEdit && !isLocked.value) {
+            actions.push({ type: "default", iconCssClass: "ti ti-player-pause", title: `Abandon ${t("CaseFile")}`, handler: () => onAbandon() });
+        }
+
+        if (canEdit && isClosed.value) {
+            actions.push({ type: "default", iconCssClass: "ti ti-folder-open", title: `Reopen ${t("CaseFile")}`, handler: () => onReopen() });
+        }
+
         if (caseFile.value?.idKey) {
             actions.push({
                 type: "default",
+                iconCssClass: "ti ti-history",
                 title: "Audit Details",
                 handler: () => {
                     isAuditModalOpen.value = true;
@@ -379,11 +390,12 @@
             return;
         }
 
-        if (config.isPhaseJumpingRestricted && phase !== caseFile.value?.currentPhase) {
-            const progress = caseFile.value?.phaseStates.find(s => s.phase === phase)?.progress ?? 0;
-            if (progress === 0) {
-                return;
-            }
+        if (phase === caseFile.value?.currentPhase) {
+            return;
+        }
+
+        if (config.isPhaseJumpingRestricted && phase > (caseFile.value?.furthestPhase ?? 9)) {
+            return;
         }
 
         invoke("SetCurrentPhase", { phase });

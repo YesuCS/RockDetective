@@ -29,9 +29,9 @@ namespace com.yesuchum.RockDetective.Blocks
         Key = AttributeKey.DetailPage )]
 
     [CustomDropdownListField( "Default View",
-        Description = "The view shown when the block first loads.",
-        ListSource = "MyRequests^My Requests,MyAssignments^My Assignments,All^Every Case",
-        DefaultValue = "MyRequests",
+        Description = "What a person sees before they have set their own filter: every case they can see, only the cases they own, or only the cases they are on.",
+        ListSource = "All^Every Case,MyRequests^My Requests,MyAssignments^My Assignments",
+        DefaultValue = "All",
         IsRequired = true,
         Order = 1,
         Key = AttributeKey.DefaultView )]

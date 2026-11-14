@@ -312,6 +312,7 @@ namespace com.yesuchum.RockDetective.Data
                 Classification = ( int ) caseFile.Classification,
                 Status = ( int ) caseFile.Status,
                 CurrentPhase = ( int ) caseFile.CurrentPhase,
+                FurthestPhase = ( int ) CaseRules.GetFurthestPhase( caseFile, GetPhaseStates( caseFile ) ),
                 OwnerName = aliasInfo.ContainsKey( caseFile.OwnerPersonAliasId ) ? aliasInfo[caseFile.OwnerPersonAliasId].FullName : "Unknown",
                 OwnerPersonAliasGuid = aliasInfo.ContainsKey( caseFile.OwnerPersonAliasId ) ? aliasInfo[caseFile.OwnerPersonAliasId].Guid.ToString() : null,
                 ImpactSummary = caseFile.ImpactSummary,

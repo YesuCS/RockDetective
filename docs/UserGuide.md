@@ -42,9 +42,13 @@ People in the **Rock Detective Users** role can open the case list and the Case 
 
 ## The case list
 
-Two buttons at the top narrow the list to your own work: **My Requests** for cases you own, and **My Assignments** for cases you are on. Click the one that is lit to turn it off and see every case you have access to.
+The list shows every case you have access to. The filter icon on the grid opens **Case Filters**, where you narrow it down:
 
-The filter icon on the grid opens **Case Filters**. **Show** picks which cases are listed: **Active** (the default) for cases still being worked, **Archived** for closed cases, or **All** for both. Category, Status, and Mode narrow it further. Your filters are remembered.
+- **Show** picks which cases are listed: **Active** (the default) for cases still being worked, **Archived** for closed cases, or **All** for both.
+- **My Involvement** narrows the list to your own work: **My Requests** for cases you own, or **My Assignments** for cases you are on. Leave it blank to see everything.
+- **Category**, **Status**, and **Mode** narrow it further.
+
+Your filters are remembered, and the filter icon is highlighted whenever one is on.
 
 The list leads with **Date | Name | Status** and sorts with the newest problem first. The date is when the problem started, taken from the Problem Start event on the case's timeline. Until a case has one, it shows the day the case was opened. Once you have a lot of cases, the date is the fastest way to find the one you're after.
 
@@ -65,9 +69,13 @@ The top of the board reads **Name | Status**, with the category and mode at the 
 
 ### Phases
 
+Export PDF, Upgrade to Advanced, Abandon, Reopen, and Audit Details are in the menu at the top right of the board (the three dots), so the board itself stays on the work.
+
 The stepper across the top shows the phases in three groups: **Set up** (phases 1 to 4), **Investigate** (5 to 8), and **Close** (9). Each phase is a small numbered button. Green with a check is complete, and the highlighted one, the only one that shows its name, is where you are. Hover over any number to see that phase's name and what it's for, and click it to go there. In Simple mode, Define the Team and Timeline stay out of the stepper unless you started them. The Investigate phases (Fact List, Probability Tree, Experiments, Reevaluate) loop; keep cycling through them until a cause is confirmed beyond a reasonable doubt.
 
-On a phone (screens under 768 pixels wide) the stepper becomes a dropdown. Completed phases carry a check mark, and phases that Restrict Phase Jumping has locked are greyed out.
+On a phone (screens under 768 pixels wide) the stepper becomes a dropdown. Completed phases carry a check mark, and locked phases are greyed out.
+
+A case moves forward one way: by completing the phase it is on, which checks that phase's gate. You can always click back to a phase the case has already been through, to review it or add to it, and then return to where you were. Phases the case hasn't earned yet show a lock. That holds for everything on the board, including closing the case, which only works from the last phase with the phases before it complete. The **Restrict Phase Jumping** block setting controls this, and it is on by default.
 
 Each phase shows its guidance, prompts to work through, a notes field, and a gate checklist. **Complete Phase** is enabled only when every line of the checklist is met. Completing a phase moves the case to the next one, and the case goes from Open to Investigating when it reaches the Fact List.
 
@@ -136,7 +144,7 @@ Any statement can be promoted to the fact list. Edit it down to the specific, pe
 
 **Close Case** (or **Run Postmortem and Close** on phase 9) opens the postmortem form: impact, solution, contributing factors, lessons learned, prevention measures, and action items. All six are required. That's the point of a postmortem.
 
-A closed case is read-only. **Reopen Case** puts it back at the Fact List phase with the status Reopened.
+A closed case is read-only. **Reopen Case**, in the menu at the top right, puts it back at the Fact List phase with the status Reopened. The phases from Fact List on have to be completed again, and the Champion signs off again.
 
 ### Follow-up check
 
@@ -155,7 +163,7 @@ Any case that isn't closed can be **abandoned**. It stays with the active cases,
 
 ### Export PDF
 
-**Export PDF** on the board produces the case file as a report. The cover shows the case's key (like `OX9mQWPQo8`), the same identifier the page address, the emails, and the MCP tools use. Rock Detective used to show the database Id there, which made a church's first ministry review look like the third of something. The report has the cover, problem statement, timeline, facts, evidence, probability tree, experiment log, witness statements, and postmortem. Sections with nothing in them are left out.
+**Export PDF**, in the menu at the top right of the board, produces the case file as a report. The cover shows the case's key (like `OX9mQWPQo8`), the same identifier the page address, the emails, and the MCP tools use. Rock Detective used to show the database Id there, which made a church's first ministry review look like the third of something. The report has the cover, problem statement, timeline, facts, evidence, probability tree, experiment log, witness statements, and postmortem. Sections with nothing in them are left out.
 
 ## Making it sound like your ministry
 
@@ -231,7 +239,7 @@ Saved wording applies the next time a case loads. Nothing about the case's data 
 |---|---|---|
 | Witness Statement Page | Witness Statement | The page witnesses land on. Required. |
 | Send Requests Automatically | Off | Emails a witness request as soon as it is created. |
-| Restrict Phase Jumping | Off | The stepper only allows phases already started; new ones unlock by completing the one before. |
+| Restrict Phase Jumping | On | A case only moves forward by completing its current phase, which checks the gate. Going back to earlier phases is always allowed. Turn it off and any phase can be selected at any time, which makes the gates advice instead of rules. AI assistants follow the gates either way. |
 | Minimum Facts (Advanced) | 3 | Facts needed to complete the Fact List phase. |
 | Minimum Facts (Simple) | 1 | Same, for Simple cases. |
 | Minimum Root Hypotheses (Advanced) | 2 | Root hypotheses with probabilities needed to complete the Probability Tree phase. |
@@ -247,8 +255,8 @@ The five minimums and the attestation setting sit under the **Gate Requirements*
 | Setting | Default | What it does |
 |---|---|---|
 | Detail Page | Case Board | The page a case opens on. Required. |
-| Default View | My Requests | What the list shows first: My Requests, My Assignments, or Every Case (neither button lit). |
-| Show All View To Everyone | Off | With neither button lit, widens the list past entity security. Opening a case still checks its own security. |
+| Default View | Every Case | What a person sees before they set their own My Involvement filter: Every Case, My Requests, or My Assignments. |
+| Show All View To Everyone | Off | With no My Involvement filter, widens the list past entity security. Opening a case still checks its own security. |
 
 ### Global attributes
 
@@ -271,4 +279,4 @@ Case files use standard Rock entity security. Rock Detective Users can view and 
 - **Editing.** Edit security on the case lets you change it. The owner can also work their own case on the Case Board without it. Other participants can only view.
 - **Deleting.** The list's delete button needs Edit on the case and removes everything under it.
 - **Witness page.** Only the person the request was sent to, or someone with Edit on the case, can open a statement request.
-- **List buttons.** My Requests shows cases you own. My Assignments shows the cases where you are a participant. With neither lit, the list shows every case you can view.
+- **My Involvement filter.** My Requests shows cases you own. My Assignments shows the cases where you are a participant. Left blank, the list shows every case you can view.

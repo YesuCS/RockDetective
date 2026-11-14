@@ -24,6 +24,7 @@
                         :disabled="isPhaseDisabled(definition.phase)"
                         @click="$emit('phaseSelected', definition.phase)">
                     <i v-if="progressOf(definition.phase) === 2 && definition.phase !== currentPhase" class="ti ti-check mr-1"></i>
+                    <i v-else-if="isPhaseDisabled(definition.phase)" class="ti ti-lock mr-1"></i>
                     <i v-else-if="progressOf(definition.phase) === 3" class="ti ti-arrow-forward mr-1"></i>
                     {{ definition.phase }}<template v-if="definition.phase === currentPhase">. {{ definition.name }}</template>
                 </button>
@@ -48,6 +49,10 @@
         currentPhase: {
             type: Number,
             required: true
+        },
+        furthestPhase: {
+            type: Number,
+            default: 9
         },
         isSimpleMode: {
             type: Boolean,
@@ -90,7 +95,7 @@
 
     function chipTitle(definition: PhaseDefinitionBag): string {
         if (isPhaseDisabled(definition.phase)) {
-            return `${definition.phase}. ${definition.name}: complete the current phase to unlock this step.`;
+            return `${definition.phase}. ${definition.name}: locked until the phases before it are complete.`;
         }
 
         return `${definition.phase}. ${definition.name}: ${definition.guidance}`;
@@ -101,7 +106,7 @@
     }
 
     function isPhaseDisabled(phase: number): boolean {
-        return props.isJumpRestricted && phase !== props.currentPhase && progressOf(phase) === 0;
+        return props.isJumpRestricted && phase !== props.currentPhase && phase > props.furthestPhase;
     }
 
     function buttonClass(phase: number): string {

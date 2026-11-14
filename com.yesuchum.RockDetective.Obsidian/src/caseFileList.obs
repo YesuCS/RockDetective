@@ -3,21 +3,8 @@
         {{ notification }}
     </NotificationBox>
 
-    <div class="mb-3 d-flex align-items-center justify-content-between flex-wrap" style="gap: 8px;">
-        <div class="btn-group d-flex" style="width: fit-content;">
-            <button v-for="view in views"
-                    :key="view.key"
-                    type="button"
-                    class="btn btn-sm d-inline-flex align-items-center"
-                    style="height: 34px;"
-                    :class="activeView === view.key ? 'btn-primary' : 'btn-default'"
-                    :title="activeView === view.key ? 'Click again to show every case you can see' : ''"
-                    @click="onViewChanged(view.key)">
-                {{ view.label }}
-                <span v-if="view.badge" class="badge ml-1">{{ view.badge }}</span>
-            </button>
-        </div>
-        <div v-if="config.terminologySettingsUrl || config.skillSettingsUrl" class="d-flex" style="gap: 8px;">
+    <div v-if="config.terminologySettingsUrl || config.skillSettingsUrl" class="mb-3 d-flex align-items-center justify-content-end flex-wrap" style="gap: 8px;">
+        <div class="d-flex" style="gap: 8px;">
             <a v-if="config.terminologySettingsUrl" class="btn btn-default btn-sm d-inline-flex align-items-center" style="height: 34px;"
                :href="config.terminologySettingsUrl" title="Rename phases, terms and gate wording">
                 <i class="ti ti-language mr-1"></i>Terminology Settings
@@ -133,26 +120,37 @@
     const allCases = ref<CaseFileListItemBag[]>(config.cases ?? []);
     const archiveCases = ref<CaseFileListItemBag[]>([]);
     const archiveLoaded = ref(false);
-    const activeView = ref<string>(config.defaultView === "All" ? "" : (config.defaultView || "MyRequests"));
 
     const isGridSettingsVisible = ref(false);
     const gridSettings = ref<GridSettingsOptions>({
         category: preferences.getValue("filter-category"),
         status: preferences.getValue("filter-status"),
         mode: preferences.getValue("filter-mode"),
-        show: preferences.getValue("filter-show") || "Active"
+        show: preferences.getValue("filter-show") || "Active",
+        involvement: initialInvolvement()
     });
+
+    function initialInvolvement(): string {
+        const saved = preferences.getValue("filter-involvement");
+
+        if (saved) {
+            return saved === "Everyone" ? "" : saved;
+        }
+
+        return config.defaultView === "MyRequests" || config.defaultView === "MyAssignments" ? config.defaultView : "";
+    }
 
     const isArchivedOnly = computed(() => gridSettings.value.show === "Archived");
 
     const hasSettingsFilters = computed(() =>
-        !!gridSettings.value.category || !!gridSettings.value.status || !!gridSettings.value.mode || gridSettings.value.show !== "Active");
+        !!gridSettings.value.category || !!gridSettings.value.status || !!gridSettings.value.mode || !!gridSettings.value.involvement || gridSettings.value.show !== "Active");
 
     watch(gridSettings, async () => {
         preferences.setValue("filter-category", gridSettings.value.category ?? "");
         preferences.setValue("filter-status", gridSettings.value.status ?? "");
         preferences.setValue("filter-mode", gridSettings.value.mode ?? "");
         preferences.setValue("filter-show", gridSettings.value.show ?? "Active");
+        preferences.setValue("filter-involvement", gridSettings.value.involvement || "Everyone");
         await preferences.save();
         await loadArchiveIfNeeded();
     });
@@ -160,11 +158,6 @@
     function onGridSettingsClick(): void {
         isGridSettingsVisible.value = true;
     }
-
-    const views = computed(() => [
-        { key: "MyRequests", label: "My Requests", badge: allCases.value.filter(c => c.isMine).length || undefined },
-        { key: "MyAssignments", label: "My Assignments", badge: allCases.value.filter(c => c.isAssignedToMe).length || undefined }
-    ]);
 
     const visibleCases = computed<CaseFileListItemBag[]>(() => {
         const settings = gridSettings.value;
@@ -180,10 +173,10 @@
             cases = allCases.value;
         }
 
-        if (activeView.value === "MyRequests") {
+        if (settings.involvement === "MyRequests") {
             cases = cases.filter(c => c.isMine);
         }
-        else if (activeView.value === "MyAssignments") {
+        else if (settings.involvement === "MyAssignments") {
             cases = cases.filter(c => c.isAssignedToMe);
         }
 
@@ -210,10 +203,6 @@
 
     refreshGrid();
     watch(visibleCases, refreshGrid);
-
-    function onViewChanged(view: string): void {
-        activeView.value = activeView.value === view ? "" : view;
-    }
 
     async function loadArchiveIfNeeded(): Promise<void> {
         if (gridSettings.value.show !== "Active" && !archiveLoaded.value) {

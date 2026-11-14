@@ -287,6 +287,7 @@ export type CaseFileBag = {
     classification: number;
     status: number;
     currentPhase: number;
+    furthestPhase: number;
     ownerName: string;
     ownerPersonAliasGuid?: string | null;
     impactSummary?: string | null;

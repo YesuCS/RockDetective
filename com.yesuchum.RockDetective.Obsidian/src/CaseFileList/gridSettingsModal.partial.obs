@@ -5,6 +5,9 @@
             <div class="col-md-4">
                 <DropDownList v-model="show" label="Show" :items="showItems" :showBlankItem="false" help="Active cases are still being worked. Archived cases are closed." />
             </div>
+            <div class="col-md-4">
+                <DropDownList v-model="involvement" label="My Involvement" :items="involvementItems" help="Leave blank to list every case you can see. My Requests are cases you own. My Assignments are cases you are on." />
+            </div>
         </div>
         <div class="row">
             <div class="col-md-4">
@@ -33,6 +36,7 @@
         status: string;
         mode: string;
         show: string;
+        involvement: string;
     };
 
     const props = defineProps({
@@ -64,13 +68,20 @@
     const status = ref(props.modelValue.status);
     const mode = ref(props.modelValue.mode);
     const show = ref(props.modelValue.show || "Active");
+    const involvement = ref(props.modelValue.involvement ?? "");
 
     watch(() => props.modelValue, value => {
         category.value = value.category;
         status.value = value.status;
         mode.value = value.mode;
         show.value = value.show || "Active";
+        involvement.value = value.involvement ?? "";
     });
+
+    const involvementItems: ListItemBag[] = [
+        { value: "MyRequests", text: "My Requests" },
+        { value: "MyAssignments", text: "My Assignments" }
+    ];
 
     const showItems: ListItemBag[] = [
         { value: "All", text: "All" },
@@ -95,7 +106,8 @@
             category: category.value,
             status: status.value,
             mode: mode.value,
-            show: show.value
+            show: show.value,
+            involvement: involvement.value
         });
         isVisible.value = false;
     }

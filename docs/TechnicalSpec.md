@@ -31,7 +31,7 @@ The five blocks live under Admin Tools > Installed Plugins > Rock Detective:
 
 | Block | Page | Role |
 |---|---|---|
-| Case File List | Rock Detective | My Requests and My Assignments toggles; Case Filters with Show (All, Active, Archived), category, status, and mode; new case modal; delete. |
+| Case File List | Rock Detective | Case Filters with Show (All, Active, Archived), My Involvement (My Requests, My Assignments), category, status, and mode; new case modal; delete. |
 | Case Board | Case Board | The workspace for one case. Takes a `CaseFile` page parameter (IdKey or Guid). |
 | Witness Statement Entry | Witness Statement | Where a witness submits or declines a request. Takes a `Statement` page parameter. |
 | Terminology Settings | Terminology Settings | Where an administrator renames phases, terms, and gate wording for all categories or one. |
@@ -111,11 +111,13 @@ All of these are block actions on the Case Board that re-check gates and permiss
 |---|---|
 | Create case | Status Open. Define the Problem and Classify are marked complete. Simple starts at Fact List, Advanced at Define the Team. |
 | Complete Phase | Re-runs the gate, then moves to the next phase that is not auto-skipped. Open becomes Investigating at Fact List or later. Completing Reevaluate with a confirmed hypothesis sets Solved. |
-| Set current phase | Moves the case. With Restrict Phase Jumping on, rejects any phase still NotStarted. The stepper disables those buttons, but the server check is the real gate. |
+| Set current phase | Moves the case. With Restrict Phase Jumping on (the default), it only allows the current phase or a phase at or before the furthest one the case has earned. `CaseRules.GetFurthestPhase` walks the phases in order and stops at the first that is not Complete, leaving out Simple mode's auto-skipped phases while they are untouched. A phase marked Complete at creation does not help while an earlier one is open. The stepper locks the rest, but the server check is the real gate. The same check guards Save Phase Form, so notes can't be used to start a locked phase. |
+| Complete phase | Only the phase the case is on can be completed, whatever the setting. |
+| Close | Only from Postmortem, whatever the setting; with the setting on, the earlier phases also have to be complete. |
 | Loop back | Only from Reevaluate. Increments the loop count, clears the Champion sign-off, sets completed loop phases (5 to 8) back to in progress, and moves to Fact List. |
 | Upgrade mode | Simple to Advanced only. |
 | Close | Runs the Postmortem gate, saves the postmortem, sets Closed and an optional follow-up date. |
-| Reopen | Sets Reopened, clears the closed date and follow-up confirmation, and moves to Fact List. |
+| Reopen | Sets Reopened, clears the closed date, follow-up confirmation, and Champion sign-off, moves to Fact List, and sets completed phases 5 to 9 back to in progress so they are earned again. |
 | Abandon and resume | Abandon sets Abandoned. Resume sets Investigating at Fact List or later, otherwise Open. |
 
 Closed and Abandoned cases reject edits except Reopen, Resume, and Confirm Follow-Up. `GetPhase` falls back to the first phase on an unknown value so one corrupt row cannot crash the Case File List.
@@ -281,7 +283,7 @@ Everything is add-or-update or existence-guarded, so a re-run over surviving row
 
 The Obsidian project has one `.obs` file per block (five now, with `terminologySettings.obs` and `skillSettings.obs`), with partials for the Case Board panels (`phaseStepper`, `entriesPanel`, `hypothesesPanel`, `experimentsPanel`, `participantsPanel`) and the list's grid settings. Grid filters on the list are saved as person preferences.
 
-The Case Board renders the phase stepper and a phase dropdown together and switches between them with CSS. Below 768 pixels the stepper is hidden and the dropdown shows, with a check mark on completed phases and disabled options for phases that Restrict Phase Jumping holds back. Timeline entries are sorted by event date in the entries panel; the other entry types keep their stored order.
+The Case Board renders the phase stepper and a phase dropdown together and switches between them with CSS. Below 768 pixels the stepper is hidden and the dropdown shows, with a check mark on completed phases and disabled options for phases that Restrict Phase Jumping holds back. The board's secondary actions (Export PDF, Upgrade to Advanced, Abandon, Reopen, Audit Details) are `headerSecondaryActions` on the panel; only Resume and Fix Held stay as buttons, because they are the one thing to do on an abandoned or closed case. Timeline entries are sorted by event date in the entries panel; the other entry types keep their stored order.
 
 Renamed terms reach the partials through provide and inject. `caseFileDetail.obs` builds a lookup from the case bag's `terms` with `createTermLookup` and provides it; each partial calls `useTerms()` and gets `t` (one), `tp` (more than one), and lower-case versions `tl` and `tpl`. The lookup reads the bag every time, so the words change as soon as an action returns a new bag. Panel titles for the fact list, timeline, probability tree, and experiments come from the phase names. `types.partial.ts` carries a copy of the standard terms as a fallback for a bag without any.
 

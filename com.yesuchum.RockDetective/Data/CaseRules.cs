@@ -156,6 +156,34 @@ namespace com.yesuchum.RockDetective.Data
             return null;
         }
 
+        public static CasePhase GetFurthestPhase( Model.CaseFile caseFile, CasePhaseStates states )
+        {
+            foreach ( var phase in new[] { CasePhase.DefineTeam, CasePhase.DefineProblem, CasePhase.Classify, CasePhase.Timeline, CasePhase.FactList, CasePhase.ProbabilityTree, CasePhase.Experiments, CasePhase.Reevaluate } )
+            {
+                var progress = states.TryGetValue( phase, out var state ) ? state.Progress : PhaseProgress.NotStarted;
+                var isUntouched = progress == PhaseProgress.NotStarted || progress == PhaseProgress.Skipped;
+
+                if ( caseFile.Mode == CaseMode.Simple && MethodDefinition.GetPhase( phase ).IsAutoSkippedInSimpleMode && isUntouched )
+                {
+                    continue;
+                }
+
+                if ( progress != PhaseProgress.Complete )
+                {
+                    return phase;
+                }
+            }
+
+            return CasePhase.Postmortem;
+        }
+
+        public static bool CanEnterPhase( Model.CaseFile caseFile, CasePhaseStates states, CasePhase target )
+        {
+            return target == caseFile.CurrentPhase || ( int ) target <= ( int ) GetFurthestPhase( caseFile, states );
+        }
+
+        public const string PhaseLockedMessage = "That phase is locked. Complete the phases before it first; each one checks its gate.";
+
         public static void RecordChampionSignOff( CasePhaseStates states, Rock.Model.Person person )
         {
             var state = states.GetState( CasePhase.Reevaluate );

@@ -36,8 +36,8 @@ namespace com.yesuchum.RockDetective.Blocks
         Key = AttributeKey.SendRequestsAutomatically )]
 
     [BooleanField( "Restrict Phase Jumping",
-        Description = "When on, phases must be entered in order by completing the previous phase; the stepper only allows revisiting phases that have already been started. When off, any phase can be selected at any time.",
-        DefaultBooleanValue = false,
+        Description = "When on, a case can only move forward by completing its current phase, which checks that phase's gate. People can still go back to any phase the case has already been through. When off, any phase can be selected at any time and the gates are only advice.",
+        DefaultBooleanValue = true,
         Order = 2,
         Key = AttributeKey.RestrictPhaseJumping )]
 
@@ -185,7 +185,7 @@ namespace com.yesuchum.RockDetective.Blocks
                 box.IsOwner = IsOwner( caseFile, currentPerson );
                 box.IsChampion = IsInRole( entities.Participants, currentPerson, ParticipantRole.Champion );
                 box.CanRecordChampionSignOff = CaseRules.CanSignOffAsChampion( entities.Participants, currentPerson, box.CanEdit );
-                box.IsPhaseJumpingRestricted = GetAttributeValue( AttributeKey.RestrictPhaseJumping ).AsBoolean();
+                box.IsPhaseJumpingRestricted = IsPhaseJumpingRestricted();
             }
 
             return box;
@@ -245,6 +245,7 @@ namespace com.yesuchum.RockDetective.Blocks
                 caseFile.ClosedDateTime = null;
                 caseFile.FollowUpConfirmedDateTime = null;
                 caseFile.CurrentPhase = CasePhase.FactList;
+                ReopenLoopPhases( caseFile );
                 StampModified( caseFile );
                 detectiveContext.SaveChanges();
 
@@ -293,6 +294,29 @@ namespace com.yesuchum.RockDetective.Blocks
             }
 
             return person.Aliases.Any( a => a.Id == caseFile.OwnerPersonAliasId );
+        }
+
+        private static void ReopenLoopPhases( Model.CaseFile caseFile )
+        {
+            var states = CaseMapper.GetPhaseStates( caseFile );
+
+            foreach ( var reopenedPhase in new[] { CasePhase.FactList, CasePhase.ProbabilityTree, CasePhase.Experiments, CasePhase.Reevaluate, CasePhase.Postmortem } )
+            {
+                var state = states.GetState( reopenedPhase );
+
+                if ( state.Progress == PhaseProgress.Complete )
+                {
+                    state.Progress = PhaseProgress.InProgress;
+                }
+            }
+
+            CaseRules.ClearChampionSignOff( states );
+            CaseMapper.SetPhaseStates( caseFile, states );
+        }
+
+        private bool IsPhaseJumpingRestricted()
+        {
+            return GetAttributeValue( AttributeKey.RestrictPhaseJumping ).AsBoolean();
         }
 
         private static bool IsInRole( List<Model.CaseParticipant> participants, Rock.Model.Person person, ParticipantRole role )
@@ -422,6 +446,12 @@ namespace com.yesuchum.RockDetective.Blocks
 
                 var phase = ( CasePhase ) bag.Phase;
                 var states = CaseMapper.GetPhaseStates( caseFile );
+
+                if ( IsPhaseJumpingRestricted() && !CaseRules.CanEnterPhase( caseFile, states, phase ) )
+                {
+                    return ActionBadRequest( CaseRules.PhaseLockedMessage );
+                }
+
                 var state = states.GetState( phase );
 
                 state.Summary = bag.Summary;
@@ -450,6 +480,12 @@ namespace com.yesuchum.RockDetective.Blocks
             return WithEditableCase( idKey, ( detectiveContext, caseFile ) =>
             {
                 var casePhase = ( CasePhase ) phase;
+
+                if ( casePhase != caseFile.CurrentPhase )
+                {
+                    return ActionBadRequest( "Only the phase the case is on can be completed. Refresh the page and try again." );
+                }
+
                 var entities = LoadCaseEntities( detectiveContext, caseFile.Id );
                 var aggregate = CaseMapper.BuildAggregate( caseFile, entities.Entries, entities.Hypotheses, entities.Experiments, entities.Participants );
                 var gate = GateEvaluator.Evaluate( aggregate, casePhase, GetGateOptions() );
@@ -503,17 +539,16 @@ namespace com.yesuchum.RockDetective.Blocks
         {
             return WithEditableCase( idKey, ( detectiveContext, caseFile ) =>
             {
-                var isRestricted = GetAttributeValue( AttributeKey.RestrictPhaseJumping ).AsBoolean();
                 var targetPhase = ( CasePhase ) phase;
 
-                if ( isRestricted && targetPhase != caseFile.CurrentPhase )
+                if ( !Enum.IsDefined( typeof( CasePhase ), targetPhase ) )
                 {
-                    var targetState = CaseMapper.GetPhaseStates( caseFile ).GetState( targetPhase );
+                    return ActionBadRequest( "That is not a phase." );
+                }
 
-                    if ( targetState.Progress == PhaseProgress.NotStarted )
-                    {
-                        return ActionBadRequest( "Phases must be entered in order. Complete the current phase to advance." );
-                    }
+                if ( IsPhaseJumpingRestricted() && !CaseRules.CanEnterPhase( caseFile, CaseMapper.GetPhaseStates( caseFile ), targetPhase ) )
+                {
+                    return ActionBadRequest( CaseRules.PhaseLockedMessage );
                 }
 
                 caseFile.CurrentPhase = targetPhase;
@@ -642,6 +677,16 @@ namespace com.yesuchum.RockDetective.Blocks
                     return ActionBadRequest();
                 }
 
+                if ( caseFile.CurrentPhase != CasePhase.Postmortem )
+                {
+                    return ActionBadRequest( "A case is closed from its last phase. Complete the earlier phases first." );
+                }
+
+                if ( IsPhaseJumpingRestricted() && CaseRules.GetFurthestPhase( caseFile, CaseMapper.GetPhaseStates( caseFile ) ) != CasePhase.Postmortem )
+                {
+                    return ActionBadRequest( "This case has earlier phases that are not complete. Complete them before closing." );
+                }
+
                 caseFile.ImpactSummary = bag.ImpactSummary;
                 caseFile.SolutionSummary = bag.SolutionSummary;
                 caseFile.ContributingFactors = bag.ContributingFactors;
@@ -685,6 +730,7 @@ namespace com.yesuchum.RockDetective.Blocks
                 caseFile.ClosedDateTime = null;
                 caseFile.FollowUpConfirmedDateTime = null;
                 caseFile.CurrentPhase = CasePhase.FactList;
+                ReopenLoopPhases( caseFile );
                 StampModified( caseFile );
                 detectiveContext.SaveChanges();
 
