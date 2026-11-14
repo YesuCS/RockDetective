@@ -116,7 +116,8 @@ All of these are block actions on the Case Board that re-check gates and permiss
 | Close | Only from Postmortem, whatever the setting; with the setting on, the earlier phases also have to be complete. |
 | Loop back | Only from Reevaluate. Increments the loop count, clears the Champion sign-off, sets completed loop phases (5 to 8) back to in progress, and moves to Fact List. |
 | Upgrade mode | Simple to Advanced only. |
-| Close | Runs the Postmortem gate, saves the postmortem, sets Closed and an optional follow-up date. |
+| Save postmortem | Saves the six postmortem fields and the follow-up date without closing. Only on the Postmortem phase. The board shows the saved answers with an edit pencil, like the problem statement. |
+| Close | Runs the Postmortem gate, saves the postmortem, sets Closed and an optional follow-up date. The board sends the saved answers; it no longer has a close form. |
 | Reopen | Sets Reopened, clears the closed date, follow-up confirmation, and Champion sign-off, moves to Fact List, and sets completed phases 5 to 9 back to in progress so they are earned again. |
 | Abandon and resume | Abandon sets Abandoned. Resume sets Investigating at Fact List or later, otherwise Open. |
 

@@ -147,7 +147,9 @@ Any statement can be promoted to the fact list. Edit it down to the specific, pe
 
 ### Postmortem
 
-**Close Case** (or **Run Postmortem and Close** on phase 9) opens the postmortem form: impact, solution, contributing factors, lessons learned, prevention measures, and action items. All six are required. That's the point of a postmortem.
+The postmortem is written right on the board when the case reaches phase 9. There are six questions, each with a prompt under it: impact, solution, contributing factors, lessons learned, prevention measures, and action items. Answer what you can and click **Save Postmortem**. The answers stay on the case, so you can come back, click the pencil, and add to them, the same way the problem statement works on phase 2. You can also set a follow-up date here.
+
+All six are required before the case can close. That's the point of a postmortem. Once they are saved, **Close Case** lights up. A closed case keeps showing its postmortem on the board, and it prints in the PDF.
 
 A closed case is read-only. **Reopen Case**, in the menu at the top right, puts it back at the Fact List phase with the status Reopened. The phases from Fact List on have to be completed again, and the Champion signs off again.
 

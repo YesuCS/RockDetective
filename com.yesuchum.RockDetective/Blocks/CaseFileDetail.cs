@@ -668,6 +668,45 @@ namespace com.yesuchum.RockDetective.Blocks
         }
 
         [BlockAction]
+        public BlockActionResult SavePostmortem( string idKey, CloseCaseBag bag )
+        {
+            return WithEditableCase( idKey, ( detectiveContext, caseFile ) =>
+            {
+                if ( bag == null )
+                {
+                    return ActionBadRequest();
+                }
+
+                if ( caseFile.CurrentPhase != CasePhase.Postmortem )
+                {
+                    return ActionBadRequest( "The postmortem is written on the last phase." );
+                }
+
+                caseFile.ImpactSummary = bag.ImpactSummary;
+                caseFile.SolutionSummary = bag.SolutionSummary;
+                caseFile.ContributingFactors = bag.ContributingFactors;
+                caseFile.LessonsLearned = bag.LessonsLearned;
+                caseFile.PreventionMeasures = bag.PreventionMeasures;
+                caseFile.ActionItems = bag.ActionItems;
+                caseFile.FollowUpDate = bag.FollowUpDate;
+
+                var states = CaseMapper.GetPhaseStates( caseFile );
+                var state = states.GetState( CasePhase.Postmortem );
+
+                if ( state.Progress == PhaseProgress.NotStarted || state.Progress == PhaseProgress.Skipped )
+                {
+                    state.Progress = PhaseProgress.InProgress;
+                    CaseMapper.SetPhaseStates( caseFile, states );
+                }
+
+                StampModified( caseFile );
+                detectiveContext.SaveChanges();
+
+                return ActionOk( BuildBag( detectiveContext, caseFile ) );
+            } );
+        }
+
+        [BlockAction]
         public BlockActionResult CloseCase( string idKey, CloseCaseBag bag )
         {
             return WithEditableCase( idKey, ( detectiveContext, caseFile ) =>

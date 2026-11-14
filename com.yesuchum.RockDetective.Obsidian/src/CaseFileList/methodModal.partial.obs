@@ -180,7 +180,7 @@
         {
             label: "Finishing and after",
             items: [
-                { question: "Close a case", steps: ["Work the case to its last phase.", "Click Run Postmortem and Close.", "Fill in the six postmortem boxes and, if you want a check-in later, a follow-up date."] },
+                { question: "Close a case", steps: ["Work the case to its last phase.", "Answer the six postmortem questions on the board and click Save. You can save part of it and come back.", "If you want a check-in later, set a follow-up date.", "When every question is answered, click Close."] },
                 { question: "Export a case as a PDF", steps: ["Open the case.", "Click the three dots at the top right of the board.", "Choose Export PDF."] },
                 { question: "Reopen a closed case", steps: ["Find it with Show set to Archived and open it.", "Click the three dots at the top right of the board.", "Choose Reopen."], note: "The case goes back to phase 5, and the phases from there on are worked again." },
                 { question: "Set a case aside without closing it", steps: ["Open the case.", "Click the three dots at the top right of the board.", "Choose Abandon."], note: "Nothing is lost. Open the case and click Resume to pick it back up." },

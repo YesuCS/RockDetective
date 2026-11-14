@@ -122,6 +122,36 @@
                     </template>
                 </template>
 
+                <template v-if="activePhase === 9">
+                    <template v-if="isEditingPostmortem && canEdit && !isLocked">
+                        <TextBox v-for="field in postmortemFields" :key="field.key"
+                                 v-model="postmortemEdit[field.key]"
+                                 :label="field.label"
+                                 :help="field.question"
+                                 textMode="multiline"
+                                 :rows="3" />
+                        <DatePicker v-model="postmortemEdit.followUpDate" label="Follow-Up Check Date (optional)"
+                                    help="On this date, the owner is asked to confirm the fix held; one click reopens the case if it did not." />
+                        <div class="d-flex mb-3" style="gap: 8px;">
+                            <RockButton :btnType="BtnType.Primary" :btnSize="BtnSize.Small" :disabled="isSavingPostmortem" @click="onSavePostmortem">Save {{ phaseName(9) }}</RockButton>
+                            <RockButton v-if="hasAnyPostmortem" :btnType="BtnType.Default" :btnSize="BtnSize.Small" @click="isEditingPostmortem = false">Cancel</RockButton>
+                        </div>
+                    </template>
+                    <template v-else>
+                        <div class="mb-3">
+                            <p class="mb-2"><strong>{{ phaseName(9) }}</strong>
+                                <button v-if="canEdit && !isLocked" type="button" class="btn btn-xs btn-link" :title="'Edit ' + phaseName(9).toLowerCase()" @click="onEditPostmortem"><i class="ti ti-pencil"></i></button>
+                            </p>
+                            <div v-for="field in postmortemFields" :key="field.key" class="mb-2">
+                                <div class="text-muted" style="font-size: 13px;">{{ field.label }}</div>
+                                <div v-if="caseFile[field.key]" style="white-space: pre-wrap;">{{ caseFile[field.key] }}</div>
+                                <div v-else class="text-muted"><em>Not answered yet. {{ field.question }}</em></div>
+                            </div>
+                            <div v-if="caseFile.followUpDate" class="text-muted" style="font-size: 13px;">Follow-up check: {{ formatDate(caseFile.followUpDate) }}</div>
+                        </div>
+                    </template>
+                </template>
+
                 <template v-if="activeGate">
                     <p class="mb-1 mt-2"><strong>Gate checklist</strong></p>
                     <ul class="list-unstyled mb-3">
@@ -136,8 +166,8 @@
                     <RockButton v-if="activePhase < 9" :btnType="BtnType.Primary" :btnSize="BtnSize.Small" :disabled="!activeGate?.isMet" @click="onCompletePhase">
                         Complete Phase<i class="ti ti-chevron-right ml-1"></i>
                     </RockButton>
-                    <RockButton v-if="activePhase === 9" :btnType="BtnType.Primary" :btnSize="BtnSize.Small" @click="isCloseModalOpen = true">
-                        <i class="ti ti-archive mr-1"></i>Run {{ phaseName(9) }} and Close
+                    <RockButton v-if="activePhase === 9" :btnType="BtnType.Primary" :btnSize="BtnSize.Small" :disabled="!activeGate?.isMet || isEditingPostmortem || isClosing" @click="onCloseCase">
+                        <i class="ti ti-archive mr-1"></i>Close {{ t("CaseFile") }}
                     </RockButton>
                     <RockButton v-if="activePhase === 8" :btnType="BtnType.Default" :btnSize="BtnSize.Small" @click="onLoopBack">
                         <i class="ti ti-refresh mr-1"></i>Loop Back to {{ tp("Fact") }}
@@ -181,18 +211,6 @@
             <AuditDetail :entityTypeGuid="caseFileEntityTypeGuid" :entityKey="caseFile.idKey" />
         </Modal>
 
-        <Modal v-model="isCloseModalOpen" :title="phaseName(9) + ' and Close'" :saveText="'Close ' + t('CaseFile')" :isSaveButtonDisabled="isClosing" @save="onCloseCase">
-            <RockForm>
-                <TextBox v-model="closeForm.impactSummary" label="Impact" textMode="multiline" :rows="2" rules="required" />
-                <TextBox v-model="closeForm.solutionSummary" label="Solution Summary" textMode="multiline" :rows="2" rules="required" />
-                <TextBox v-model="closeForm.contributingFactors" label="Contributing Factors" textMode="multiline" :rows="2" rules="required" />
-                <TextBox v-model="closeForm.lessonsLearned" label="Lessons Learned" textMode="multiline" :rows="2" rules="required" />
-                <TextBox v-model="closeForm.preventionMeasures" label="Prevention Measures" textMode="multiline" :rows="2" rules="required" />
-                <TextBox v-model="closeForm.actionItems" label="Action Items" textMode="multiline" :rows="2" rules="required" />
-                <DatePicker v-model="closeForm.followUpDate" label="Follow-Up Check Date (optional)"
-                            help="On this date, the owner is asked to confirm the fix held; one click reopens the case if it did not." />
-            </RockForm>
-        </Modal>
     </template>
 </template>
 
@@ -201,7 +219,6 @@
     import NotificationBox from "@Obsidian/Controls/notificationBox.obs";
     import Panel from "@Obsidian/Controls/panel.obs";
     import Modal from "@Obsidian/Controls/modal.obs";
-    import RockForm from "@Obsidian/Controls/rockForm.obs";
     import RockButton from "@Obsidian/Controls/rockButton.obs";
     import TextBox from "@Obsidian/Controls/textBox.obs";
     import DropDownList from "@Obsidian/Controls/dropDownList.obs";
@@ -540,10 +557,22 @@
         invoke("DeleteStatement", { statementIdKey });
     }
 
-    const isCloseModalOpen = ref(false);
-    const isClosing = ref(false);
+    type PostmortemKey = "impactSummary" | "solutionSummary" | "contributingFactors" | "lessonsLearned" | "preventionMeasures" | "actionItems";
 
-    const closeForm = reactive({
+    const postmortemFields: { key: PostmortemKey; label: string; question: string }[] = [
+        { key: "impactSummary", label: "Impact", question: "What did the problem cost or affect, and for how long?" },
+        { key: "solutionSummary", label: "Solution Summary", question: "What fixed it?" },
+        { key: "contributingFactors", label: "Contributing Factors", question: "What allowed it to happen, or made it worse?" },
+        { key: "lessonsLearned", label: "Lessons Learned", question: "What do we know now that we didn't before?" },
+        { key: "preventionMeasures", label: "Prevention Measures", question: "What will keep it from happening again?" },
+        { key: "actionItems", label: "Action Items", question: "What follow-up work is left, and who owns it?" }
+    ];
+
+    const isClosing = ref(false);
+    const isSavingPostmortem = ref(false);
+    const isEditingPostmortem = ref(false);
+
+    const postmortemEdit = reactive({
         impactSummary: "",
         solutionSummary: "",
         contributingFactors: "",
@@ -553,24 +582,58 @@
         followUpDate: null as string | null
     });
 
-    watch(isCloseModalOpen, open => {
-        if (open && caseFile.value) {
-            closeForm.impactSummary = caseFile.value.impactSummary ?? "";
-            closeForm.solutionSummary = caseFile.value.solutionSummary ?? "";
-            closeForm.contributingFactors = caseFile.value.contributingFactors ?? "";
-            closeForm.lessonsLearned = caseFile.value.lessonsLearned ?? "";
-            closeForm.preventionMeasures = caseFile.value.preventionMeasures ?? "";
-            closeForm.actionItems = caseFile.value.actionItems ?? "";
-            closeForm.followUpDate = caseFile.value.followUpDate ?? null;
+    const hasAnyPostmortem = computed(() => postmortemFields.some(f => !!caseFile.value?.[f.key]));
+
+    function loadPostmortemEdit(): void {
+        for (const field of postmortemFields) {
+            postmortemEdit[field.key] = caseFile.value?.[field.key] ?? "";
         }
-    });
+
+        postmortemEdit.followUpDate = caseFile.value?.followUpDate ?? null;
+    }
+
+    function onEditPostmortem(): void {
+        loadPostmortemEdit();
+        isEditingPostmortem.value = true;
+    }
+
+    watch(() => [caseFile.value?.currentPhase, caseFile.value?.status], () => {
+        if (caseFile.value?.currentPhase === 9 && !hasAnyPostmortem.value && canEdit && !isLocked.value) {
+            loadPostmortemEdit();
+            isEditingPostmortem.value = true;
+        }
+    }, { immediate: true });
+
+    async function onSavePostmortem(): Promise<void> {
+        isSavingPostmortem.value = true;
+        try {
+            const saved = await invoke("SavePostmortem", { bag: { ...postmortemEdit } });
+            if (saved) {
+                isEditingPostmortem.value = false;
+            }
+        }
+        finally {
+            isSavingPostmortem.value = false;
+        }
+    }
 
     async function onCloseCase(): Promise<void> {
+        const confirmed = await confirm(`Close this ${tl("CaseFile")}? It moves to the archive and becomes read-only. It can be reopened later.`);
+
+        if (!confirmed || !caseFile.value) {
+            return;
+        }
+
         isClosing.value = true;
         try {
-            await invoke("CloseCase", { bag: { ...closeForm } });
+            const bag: Record<string, unknown> = { followUpDate: caseFile.value.followUpDate ?? null };
+
+            for (const field of postmortemFields) {
+                bag[field.key] = caseFile.value[field.key] ?? "";
+            }
+
+            await invoke("CloseCase", { bag });
             if (caseFile.value?.status === 3) {
-                isCloseModalOpen.value = false;
                 notification.value = `${t("CaseFile")} closed and archived.`;
                 notificationType.value = AlertType.Success;
             }
