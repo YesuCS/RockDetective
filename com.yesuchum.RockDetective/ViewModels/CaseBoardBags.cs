@@ -78,6 +78,8 @@ namespace com.yesuchum.RockDetective.ViewModels
 
         public DateTime? CreatedDateTime { get; set; }
 
+        public DateTime? IssueDate { get; set; }
+
         public List<PhaseStateBag> PhaseStates { get; set; } = new List<PhaseStateBag>();
 
         public List<GateResultBag> GateResults { get; set; } = new List<GateResultBag>();

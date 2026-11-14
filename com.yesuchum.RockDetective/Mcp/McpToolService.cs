@@ -29,9 +29,24 @@ namespace com.yesuchum.RockDetective.Mcp
             _tools.AddRange( GetWriteTools() );
         }
 
-        public static IReadOnlyList<McpToolDefinition> GetTools()
+        public static IReadOnlyList<McpToolDefinition> GetTools( Rock.Model.Person person )
         {
-            return _tools;
+            var isInvestigator = CaseAccess.IsInvestigator( person );
+            var isAdministrator = CaseAccess.IsAdministrator( person );
+
+            return _tools
+                .Where( t => t.Audience == ToolAudience.Everyone
+                    || ( t.Audience == ToolAudience.Investigator && isInvestigator )
+                    || ( t.Audience == ToolAudience.Administrator && isAdministrator ) )
+                .ToList();
+        }
+
+        public static string GetDescription( McpToolDefinition tool )
+        {
+            var key = string.Concat( tool.Name.Split( '_' ).Select( part => char.ToUpperInvariant( part[0] ) + part.Substring( 1 ) ) ) + ".Description";
+            var wording = Agent.SkillWording.Get( key );
+
+            return wording.IsNotNullOrWhiteSpace() ? wording : tool.Description;
         }
 
         public static JToken Execute( string toolName, JObject arguments, Rock.Model.Person person )
@@ -41,6 +56,13 @@ namespace com.yesuchum.RockDetective.Mcp
             if ( tool == null )
             {
                 throw new McpToolException( $"Unknown tool '{toolName}'." );
+            }
+
+            if ( !CaseAccess.IsInAudience( tool.Audience, person ) )
+            {
+                throw new McpToolException( tool.Audience == ToolAudience.Administrator
+                    ? "Only Rock administrators can use this tool."
+                    : CaseAccess.WitnessOnlyMessage );
             }
 
             return tool.Handler( arguments ?? new JObject(), person );
@@ -89,7 +111,8 @@ namespace com.yesuchum.RockDetective.Mcp
                         ""limit"": { ""type"": ""integer"", ""description"": ""Maximum number of entries to return. Default 100, max 500."" }
                     }
                 }" ),
-                Handler = SearchIisLogs
+                Handler = SearchIisLogs,
+                Audience = ToolAudience.Administrator
             }
         };
 
@@ -116,10 +139,12 @@ namespace com.yesuchum.RockDetective.Mcp
                     query = query.Where( c => c.Status == status );
                 }
 
+                var rolesByCase = person != null ? CaseAccess.GetRolesByCase( detectiveContext, person ) : new Dictionary<int, List<ParticipantRole>>();
+
                 var cases = query
                     .OrderByDescending( c => c.CreatedDateTime )
                     .ToList()
-                    .Where( c => c.IsAuthorized( Rock.Security.Authorization.VIEW, person ) )
+                    .Where( c => CaseAccess.CanReadCase( c, person, rolesByCase ) )
                     .Take( limit )
                     .Select( c => new
                     {
@@ -160,9 +185,13 @@ namespace com.yesuchum.RockDetective.Mcp
                     throw new McpToolException( $"No case file was found with the IdKey '{idKey}'." );
                 }
 
-                if ( !caseFile.IsAuthorized( Rock.Security.Authorization.VIEW, person ) )
+                var rolesByCase = person != null ? CaseAccess.GetRolesByCase( detectiveContext, person ) : new Dictionary<int, List<ParticipantRole>>();
+
+                if ( !CaseAccess.CanReadCase( caseFile, person, rolesByCase ) )
                 {
-                    throw new McpToolException( "You are not authorized to view this case file." );
+                    throw new McpToolException( rolesByCase.ContainsKey( caseFile.Id )
+                        ? "You are a witness on this case, so you can answer what you were asked but not read the case. Use the statement request tools."
+                        : "You are not authorized to view this case file." );
                 }
 
                 var entries = detectiveContext.CaseEntries.Where( e => e.CaseFileId == caseFile.Id ).ToList();
@@ -187,11 +216,16 @@ namespace com.yesuchum.RockDetective.Mcp
                 MaxEntries = arguments.Value<int?>( "limit" ) ?? 100
             };
 
-            return ToJson( SearchIisLogs( options ) );
+            return ToJson( SearchIisLogs( options, person ) );
         }
 
-        public static object SearchIisLogs( IisLogQueryOptions options )
+        public static object SearchIisLogs( IisLogQueryOptions options, Rock.Model.Person person )
         {
+            if ( !CaseAccess.IsAdministrator( person ) )
+            {
+                throw new McpToolException( "Only Rock administrators can search the IIS logs." );
+            }
+
             var result = IisLogReader.Query( options );
 
             return new

@@ -11,7 +11,7 @@ namespace com.yesuchum.RockDetective.Mcp
 
         private const string ProgressNote = " Returns where the case stands: its current phase, that phase's guidance and checklist, and the next step.";
 
-        private static McpToolDefinition Tool( string name, string description, string properties, string required, Func<JObject, Rock.Model.Person, object> handler )
+        private static McpToolDefinition Tool( string name, string description, string properties, string required, Func<JObject, Rock.Model.Person, object> handler, ToolAudience audience = ToolAudience.Investigator )
         {
             var schema = new JObject
             {
@@ -29,6 +29,7 @@ namespace com.yesuchum.RockDetective.Mcp
                 Name = name,
                 Description = description,
                 InputSchema = schema,
+                Audience = audience,
                 Handler = ( arguments, person ) => ToJson( handler( arguments, person ) )
             };
         }
@@ -40,7 +41,8 @@ namespace com.yesuchum.RockDetective.Mcp
                 "For a witness: lists the statement requests that are waiting on the signed-in person, with the question being asked. It shows nothing else about the case.",
                 string.Empty,
                 null,
-                ( a, p ) => CaseWorkflowService.ListMyStatementRequests( p ) );
+                ( a, p ) => CaseWorkflowService.ListMyStatementRequests( p ),
+                ToolAudience.Everyone );
 
             yield return Tool(
                 "submit_statement",
@@ -49,7 +51,8 @@ namespace com.yesuchum.RockDetective.Mcp
                   ""statement"": { ""type"": ""string"", ""description"": ""What the person saw or knows, in their own words."" },
                   ""url"": { ""type"": ""string"", ""description"": ""An optional link that goes with the statement."" }",
                 "statementIdKey,statement",
-                ( a, p ) => CaseWorkflowService.SubmitStatement( a.Value<string>( "statementIdKey" ), a.Value<string>( "statement" ), a.Value<string>( "url" ), p ) );
+                ( a, p ) => CaseWorkflowService.SubmitStatement( a.Value<string>( "statementIdKey" ), a.Value<string>( "statement" ), a.Value<string>( "url" ), p ),
+                ToolAudience.Everyone );
 
             yield return Tool(
                 "decline_statement",
@@ -57,14 +60,15 @@ namespace com.yesuchum.RockDetective.Mcp
                 @"""statementIdKey"": { ""type"": ""string"", ""description"": ""The IdKey of the request, from list_my_statement_requests."" },
                   ""reason"": { ""type"": ""string"" }",
                 "statementIdKey",
-                ( a, p ) => CaseWorkflowService.DeclineStatement( a.Value<string>( "statementIdKey" ), a.Value<string>( "reason" ), p ) );
+                ( a, p ) => CaseWorkflowService.DeclineStatement( a.Value<string>( "statementIdKey" ), a.Value<string>( "reason" ), p ),
+                ToolAudience.Everyone );
 
             yield return Tool(
                 "list_categories",
                 "Lists the case categories a case can be opened under. Each category can have its own names for phases and terms.",
                 string.Empty,
                 null,
-                ( a, p ) => CaseWorkflowService.ListCategories() );
+                ( a, p ) => CaseWorkflowService.ListCategories( p ) );
 
             yield return Tool(
                 "create_case",

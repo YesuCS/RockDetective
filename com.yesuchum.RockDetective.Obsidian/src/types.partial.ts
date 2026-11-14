@@ -194,6 +194,7 @@ export type CaseFileListInitBag = {
     canAddCase: boolean;
     detailPageUrl?: string | null;
     terminologySettingsUrl?: string | null;
+    skillSettingsUrl?: string | null;
 };
 
 export type NewCaseResultBag = {
@@ -297,6 +298,7 @@ export type CaseFileBag = {
     followUpConfirmedDateTime?: string | null;
     closedDateTime?: string | null;
     createdDateTime?: string | null;
+    issueDate?: string | null;
     phaseStates: PhaseStateBag[];
     gateResults: GateResultBag[];
     phaseDefinitions?: PhaseDefinitionBag[] | null;
@@ -367,6 +369,24 @@ export type TerminologyValuesBag = {
     terms: Record<string, string>;
     phases: Record<string, { name?: string | null; guidance?: string | null; prompts?: string[] | null }>;
     gateDescriptions: Record<string, string>;
+};
+
+export type SkillWordingItemBag = {
+    key: string;
+    group: string;
+    label: string;
+    default: string;
+};
+
+export type SkillSettingsInitBag = {
+    canEdit: boolean;
+    items: SkillWordingItemBag[];
+    values: Record<string, string>;
+};
+
+export type SkillSettingsSaveResultBag = {
+    values: Record<string, string>;
+    isAppliedToRockAgents: boolean;
 };
 
 export type PdfResultBag = {

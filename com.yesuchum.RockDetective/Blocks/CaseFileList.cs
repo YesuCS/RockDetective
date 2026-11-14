@@ -86,6 +86,14 @@ namespace com.yesuchum.RockDetective.Blocks
                 box.TerminologySettingsUrl = RequestContext.ResolveRockUrl( $"~/page/{settingsPage.Id}" );
             }
 
+            var skillPage = PageCache.Get( SystemGuid.Page.SKILL_SETTINGS.AsGuid() );
+            var skillBlock = skillPage?.Blocks.FirstOrDefault( b => b.BlockType?.Guid == SystemGuid.BlockType.SKILL_SETTINGS.AsGuid() );
+
+            if ( skillBlock != null && skillBlock.IsAuthorized( Rock.Security.Authorization.ADMINISTRATE, currentPerson ) )
+            {
+                box.SkillSettingsUrl = RequestContext.ResolveRockUrl( $"~/page/{skillPage.Id}" );
+            }
+
             return box;
         }
 

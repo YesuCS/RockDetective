@@ -324,6 +324,11 @@ namespace com.yesuchum.RockDetective.Data
                 FollowUpConfirmedDateTime = caseFile.FollowUpConfirmedDateTime,
                 ClosedDateTime = caseFile.ClosedDateTime,
                 CreatedDateTime = caseFile.CreatedDateTime,
+                IssueDate = entries
+                    .Where( e => e.EntryType == CaseEntryType.TimelineEvent && e.TimelineEventType == TimelineEventType.ProblemStart && e.EventDateTime.HasValue )
+                    .OrderBy( e => e.EventDateTime )
+                    .Select( e => e.EventDateTime )
+                    .FirstOrDefault() ?? caseFile.CreatedDateTime,
                 PhaseStates = GetPhaseStateBags( caseFile ),
                 GateResults = EvaluateAllGates( aggregate, gateOptions, profile ),
                 PhaseDefinitions = GetPhaseDefinitionBags( profile ),

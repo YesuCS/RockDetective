@@ -16,6 +16,8 @@ namespace com.yesuchum.RockDetective.ViewModels
         public string DetailPageUrl { get; set; }
 
         public string TerminologySettingsUrl { get; set; }
+
+        public string SkillSettingsUrl { get; set; }
     }
 
     public class CaseFileListItemBag

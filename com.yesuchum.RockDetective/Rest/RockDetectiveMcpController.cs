@@ -81,7 +81,7 @@ namespace com.yesuchum.RockDetective.Rest
                     return JsonRpcResult( SuccessResponse( id, new JObject() ) );
 
                 case "tools/list":
-                    return JsonRpcResult( SuccessResponse( id, GetToolListResult() ) );
+                    return JsonRpcResult( SuccessResponse( id, GetToolListResult( person ) ) );
 
                 case "tools/call":
                     return JsonRpcResult( GetToolCallResponse( id, request, person ) );
@@ -109,20 +109,20 @@ namespace com.yesuchum.RockDetective.Rest
                     ["title"] = "Rock Detective",
                     ["version"] = ServerVersion
                 },
-                ["instructions"] = "Rock Detective is a structured problem-solving case tool for Rock RMS. Use list_cases and get_case to inspect case files, and search_iis_logs to gather request-level evidence from the web server."
+                ["instructions"] = Agent.SkillWording.Get( "Skill.Purpose" ) + "\n\n" + Agent.SkillWording.Get( "Skill.Usage" ) + "\n\n" + Agent.SkillWording.Get( "Skill.Guardrails" )
             };
         }
 
-        private static JObject GetToolListResult()
+        private static JObject GetToolListResult( Rock.Model.Person person )
         {
             var tools = new JArray();
 
-            foreach ( var tool in McpToolService.GetTools() )
+            foreach ( var tool in McpToolService.GetTools( person ) )
             {
                 tools.Add( new JObject
                 {
                     ["name"] = tool.Name,
-                    ["description"] = tool.Description,
+                    ["description"] = McpToolService.GetDescription( tool ),
                     ["inputSchema"] = tool.InputSchema
                 } );
             }

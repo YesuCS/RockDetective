@@ -13,5 +13,7 @@ namespace com.yesuchum.RockDetective.Mcp
         public JObject InputSchema { get; set; }
 
         public Func<JObject, Rock.Model.Person, JToken> Handler { get; set; }
+
+        public ToolAudience Audience { get; set; }
     }
 }

@@ -1,0 +1,128 @@
+<template>
+    <NotificationBox v-if="!config.canEdit" alertType="warning">
+        Skill settings are only available to people with Administrate access to this block.
+    </NotificationBox>
+
+    <Panel v-else title="Skill Settings" type="block">
+        <p class="text-muted">
+            This is the wording an AI assistant reads when it uses Rock Detective: what the skill is for, how to use it,
+            what it must not do, and what each tool does. Edit any of it to fit how your church works.
+            Anything you leave blank keeps its standard wording, shown in gray.
+        </p>
+        <NotificationBox alertType="info">
+            This changes what the assistant is told, not what the tools are allowed to do. The gates, case security,
+            and who may use which tool are enforced by Rock Detective no matter what the wording says.
+        </NotificationBox>
+
+        <NotificationBox v-if="message" :alertType="messageType" :dismissible="true" @dismiss="message = ''">{{ message }}</NotificationBox>
+
+        <div v-for="group in groups" :key="group.name" class="mb-3 p-3" style="border: 1px solid var(--color-interface-softer, #eee); border-radius: 4px;">
+            <h5 class="mt-0">{{ group.name }}</h5>
+            <div v-for="item in group.items" :key="item.key" class="mb-2">
+                <label class="control-label">{{ item.label }}</label>
+                <textarea v-model="values[item.key]" class="form-control" :rows="rowsFor(item.default)" :placeholder="item.default"></textarea>
+            </div>
+        </div>
+
+        <div class="d-flex mt-3" style="gap: 8px;">
+            <RockButton :btnType="BtnType.Primary" :disabled="isSaving" @click="onSave">{{ isSaving ? "Saving..." : "Save" }}</RockButton>
+            <RockButton :btnType="BtnType.Default" :disabled="isSaving" @click="onReset">Reset to Standard Wording</RockButton>
+        </div>
+    </Panel>
+</template>
+
+<script setup lang="ts">
+    import { ref, reactive, computed } from "vue";
+    import Panel from "@Obsidian/Controls/panel.obs";
+    import RockButton from "@Obsidian/Controls/rockButton.obs";
+    import NotificationBox from "@Obsidian/Controls/notificationBox.obs";
+    import { BtnType } from "@Obsidian/Enums/Controls/btnType";
+    import { AlertType } from "@Obsidian/Enums/Controls/alertType";
+    import { useConfigurationValues, useInvokeBlockAction } from "@Obsidian/Utility/block";
+    import { confirm } from "@Obsidian/Utility/dialogs";
+    import type { SkillSettingsInitBag, SkillSettingsSaveResultBag, SkillWordingItemBag } from "./types.partial";
+
+    type WordingGroup = { name: string; items: SkillWordingItemBag[] };
+
+    const config = useConfigurationValues<SkillSettingsInitBag>();
+    const invokeBlockAction = useInvokeBlockAction();
+
+    const isSaving = ref(false);
+    const message = ref("");
+    const messageType = ref<string>(AlertType.Success);
+    const values = reactive<Record<string, string>>({});
+
+    const groups = computed<WordingGroup[]>(() => {
+        const result: WordingGroup[] = [];
+
+        for (const item of config.items ?? []) {
+            let group = result.find(g => g.name === item.group);
+
+            if (!group) {
+                group = { name: item.group, items: [] };
+                result.push(group);
+            }
+
+            group.items.push(item);
+        }
+
+        return result;
+    });
+
+    function findValue(source: Record<string, string> | null | undefined, key: string): string {
+        if (!source) {
+            return "";
+        }
+
+        const match = Object.keys(source).find(k => k.toLowerCase() === key.toLowerCase());
+
+        return match ? source[match] : "";
+    }
+
+    function applyValues(source: Record<string, string> | null | undefined): void {
+        for (const item of config.items ?? []) {
+            values[item.key] = findValue(source, item.key);
+        }
+    }
+
+    function rowsFor(text: string): number {
+        return Math.min(8, Math.max(2, Math.ceil(text.length / 110) + (text.match(/\n/g)?.length ?? 0)));
+    }
+
+    async function save(payload: Record<string, string>, successMessage: string): Promise<void> {
+        isSaving.value = true;
+
+        try {
+            const result = await invokeBlockAction<SkillSettingsSaveResultBag>("SaveWording", { values: payload });
+
+            if (result.isSuccess && result.data) {
+                applyValues(result.data.values);
+                message.value = result.data.isAppliedToRockAgents
+                    ? successMessage
+                    : successMessage + " Rock's AI agents will pick it up at the next Rock restart.";
+                messageType.value = AlertType.Success;
+            }
+            else {
+                message.value = result.errorMessage ?? "The wording could not be saved.";
+                messageType.value = AlertType.Danger;
+            }
+        }
+        finally {
+            isSaving.value = false;
+        }
+    }
+
+    function onSave(): void {
+        save({ ...values }, "Wording saved. Assistants see it the next time they connect.");
+    }
+
+    async function onReset(): Promise<void> {
+        const confirmed = await confirm("Clear every custom wording here and go back to the standard wording?");
+
+        if (confirmed) {
+            await save({}, "Standard wording restored.");
+        }
+    }
+
+    applyValues(config.values);
+</script>

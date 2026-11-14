@@ -19,8 +19,10 @@ namespace com.yesuchum.RockDetective.Mcp
 
         #region Lookups
 
-        public static object ListCategories()
+        public static object ListCategories( Rock.Model.Person person )
         {
+            CaseAccess.RequireInvestigator( person );
+
             return GetCategories()
                 .Select( c => new { c.Name, Guid = c.Guid.ToString(), c.Description, HasOwnTerminology = c.GetAttributeValue( MethodProfile.CategoryAttributeKey ).IsNotNullOrWhiteSpace() } )
                 .ToList();
@@ -100,6 +102,7 @@ namespace com.yesuchum.RockDetective.Mcp
         public static object CreateCase( string title, string problemStatement, string category, string mode, bool isProblemStatementVerified, Rock.Model.Person person )
         {
             RequirePerson( person );
+            CaseAccess.RequireInvestigator( person );
 
             if ( title.IsNullOrWhiteSpace() || problemStatement.IsNullOrWhiteSpace() )
             {

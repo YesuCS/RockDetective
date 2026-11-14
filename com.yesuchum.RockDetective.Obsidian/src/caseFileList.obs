@@ -16,10 +16,16 @@
                 <span v-if="view.badge" class="badge ml-1">{{ view.badge }}</span>
             </button>
         </div>
-        <a v-if="config.terminologySettingsUrl" class="btn btn-default btn-sm d-inline-flex align-items-center" style="height: 34px;"
-           :href="config.terminologySettingsUrl" title="Rename phases, terms and gate wording">
-            <i class="ti ti-language mr-1"></i>Terminology Settings
-        </a>
+        <div v-if="config.terminologySettingsUrl || config.skillSettingsUrl" class="d-flex" style="gap: 8px;">
+            <a v-if="config.terminologySettingsUrl" class="btn btn-default btn-sm d-inline-flex align-items-center" style="height: 34px;"
+               :href="config.terminologySettingsUrl" title="Rename phases, terms and gate wording">
+                <i class="ti ti-language mr-1"></i>Terminology Settings
+            </a>
+            <a v-if="config.skillSettingsUrl" class="btn btn-default btn-sm d-inline-flex align-items-center" style="height: 34px;"
+               :href="config.skillSettingsUrl" title="Edit the wording an AI assistant reads">
+                <i class="ti ti-robot mr-1"></i>Skill Settings
+            </a>
+        </div>
     </div>
 
     <Grid :data="gridDataSource"
