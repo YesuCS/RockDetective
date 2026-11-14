@@ -36,9 +36,13 @@ Only the `content` folder gets copied. Anything else in the package is for the R
 - Two scheduled jobs, **Rock Detective Witness Reminders** and **Rock Detective Follow-Up Checks**, both active by default.
 - Three system communications you can reword under Admin Tools > Communications > System Communications (search "Rock Detective").
 - Four case categories: Software Bug, Performance, Process, and Ministry Operations.
-- A **Rock Detective Skill** for Rock's AI agents, plus a direct MCP endpoint, so an AI assistant can open and work cases through every phase, document what it finds, and search the web server's IIS logs. See the [MCP Guide](Mcp.md).
+- A **Rock Detective** skill for Rock's AI agents, with tools you can edit, plus a direct MCP endpoint, so an AI assistant can open and work cases through every phase, document what it finds, and search the web server's IIS logs. See the [MCP Guide](Mcp.md).
 
 The migration does not set any page security, so the pages inherit it from Installed Plugins. If people outside Rock Administration will use Rock Detective, give them View on the Rock Detective page, the Case Board, and the Witness Statement page, and put them in the Rock Detective Users role. Terminology Settings is for administrators. Only people with Administrate on its block can see or change the wording, and everyone else gets a notice instead.
+
+## The case list
+
+The list leads with **Date | Name | Status**, the same way the Case Board header does, and sorts with the newest problem first. The date is when the problem started, taken from the Problem Start event on the case's timeline. Until a case has one, it shows the day the case was opened. Once you have a lot of cases, the date is the fastest way to find the one you're after.
 
 ## Opening a case
 
@@ -143,7 +147,7 @@ Any case that isn't closed can be **abandoned**. It stays on the other tabs, loc
 
 ### Export PDF
 
-**Export PDF** on the board produces the case file as a report. The cover shows the case's key (like `OX9mQWPQo8`), the same identifier the Case Board, the case list, and the emails use. Rock Detective used to show the database Id there, which made a church's first ministry review look like the third of something. The report has the cover, problem statement, timeline, facts, evidence, probability tree, experiment log, witness statements, and postmortem. Sections with nothing in them are left out.
+**Export PDF** on the board produces the case file as a report. The cover shows the case's key (like `OX9mQWPQo8`), the same identifier the page address, the emails, and the MCP tools use. Rock Detective used to show the database Id there, which made a church's first ministry review look like the third of something. The report has the cover, problem statement, timeline, facts, evidence, probability tree, experiment log, witness statements, and postmortem. Sections with nothing in them are left out.
 
 ## Making it sound like your ministry
 
@@ -246,7 +250,6 @@ These are under Admin Tools > General > Global Attributes.
 |---|---|---|
 | Rock Detective IIS Log Folder | Blank | The folder the IIS log search reads from, including its subfolders. Blank means `C:\inetpub\logs\LogFiles`. See the [MCP Guide](Mcp.md). |
 | Rock Detective Default Terminology | Blank | Where the All categories wording is stored. Change it on Terminology Settings, not here. |
-| Rock Detective Skill Wording | Blank | Where custom wording for the AI skill is stored. Change it on Skill Settings, not here. |
 
 ### Witness Reminders job
 

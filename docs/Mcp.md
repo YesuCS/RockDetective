@@ -2,7 +2,7 @@
 
 MCP (Model Context Protocol) is how an AI assistant like Claude talks to another system. Rock Detective plugs into it, so an assistant can do more than answer "what cases are open?". It can open a case, work it through every phase of the method, and close it with a postmortem, leaving a case file that documents what was found, what was decided, and what fixed it.
 
-This guide covers the two ways to connect, the tools the assistant gets, how it works a case on its own, and the IIS log search. You don't need to know how MCP works to use it.
+This guide covers the two ways to connect, the tools the assistant gets, how it works a case on its own, how to make the skill your own, and the IIS log search. You don't need to know how MCP works to use it.
 
 ## Two ways to connect
 
@@ -20,11 +20,11 @@ Either way, you need Rock Detective 1.1.0 or later on Rock 19.7 or later.
 
 ## Option 1: Rock's MCP server
 
-Rock registers a **Rock Detective Skill** on its own when the plugin is installed and Rock restarts. All you do is add it to an agent.
+The plugin adds a **Rock Detective** skill to Rock's AI skills on its own, the first time Rock starts after the install. All you do is add it to an agent.
 
 1. Go to **Admin Tools > System > AI Agents > Agents**.
 2. Open the MCP agent you already use, or add a new agent, set its type to **MCP**, and give it a slug like `rock-detective`.
-3. Add the **Rock Detective Skill** to the agent and turn its tools on. You can leave all of them on: the skill checks who is asking on every call, so a witness, an investigator, and an administrator can share one agent. Leave the tools that change cases off only if nobody on this agent should change cases.
+3. Add the **Rock Detective** skill to the agent and turn its tools on. You can leave all of them on: the skill checks who is asking on every call, so a witness, an investigator, and an administrator can share one agent. Leave the tools that change cases off only if nobody on this agent should change cases.
 4. Save. The agent's address is your Rock address plus `/api/v2/mcp/` plus the slug:
 
 ```
@@ -151,15 +151,65 @@ A few details behind that table:
 
 On the direct endpoint, the list of tools itself is trimmed to what the person may use. On Rock's MCP server the agent lists every tool you turned on, and a tool the person isn't allowed to use answers with a short explanation instead of doing anything.
 
-## Changing what the assistant is told
+## Making the skill your own
 
-Everything the assistant reads about the skill is editable: what it's for, how to use it, its guardrails, and the description and purpose of each tool. Click **Skill Settings** at the top right of the case list (for people with Administrate on that block).
+The Rock Detective skill is a regular Rock AI skill, and it's yours to change. Go to **Admin Tools > System > AI Agents > AI Skills** and open **Rock Detective**. From there you can:
 
-Leave a box blank to keep the standard wording, which shows in gray. A change reaches both routes as soon as you save, and it stays through Rock restarts and plugin updates. **Reset to Standard Wording** puts everything back.
+- Edit what the assistant is told about the skill as a whole: its description, purposes, usages, and guardrails.
+- Edit any tool: its name, description, instructions, parameters, and Lava.
+- Add tools of your own.
+- Delete tools you don't want.
 
-This changes what the assistant is told, not what it is allowed to do. The gates, case security, and the table above are enforced by Rock Detective whatever the wording says. Don't edit the skill in Rock's own AI Skills screen; Rock resets a code skill's wording from the plugin every time it starts, so edits made there don't last.
+This applies to Rock's MCP server. The direct endpoint doesn't go through the skill, so it always offers the standard tools.
 
-The standard wording is listed in [Skill Defaults](SkillDefaults.md).
+### How a tool works
+
+Each tool is a short piece of Lava. When the assistant calls a tool, Rock fills in the parameters the assistant sent, runs the Lava, and hands the output back to the assistant. This is Create Case as it ships:
+
+```liquid
+{% rockdetective tool:'create_case' %}
+{
+  "title": {{ title | ToJSON }},
+  "problemStatement": {{ problemStatement | ToJSON }},
+  "category": {{ category | ToJSON }},
+  "mode": {{ mode | ToJSON }},
+  "isProblemStatementVerified": {{ isProblemStatementVerified | ToJSON }}
+}
+{% endrockdetective %}
+```
+
+The `rockdetective` command does the work. You give it the name of one of Rock Detective's actions and a JSON object of arguments. It runs the action as the signed-in person and outputs the result as JSON. When the action can't do what was asked, the output is `{"refused": true, "reason": "..."}`, and the reason says what is still needed.
+
+The action names are the same ones the direct endpoint uses (`list_cases`, `create_case`, `add_entry`, and so on). [Skill Defaults](SkillDefaults.md) lists all 22 with their arguments.
+
+### What you can do with that
+
+- **Use your church's language.** Rename a tool, or rewrite its description and parameter instructions so the assistant talks the way your team does.
+- **Decide something for the assistant.** Replace `{{ mode | ToJSON }}` with `"Advanced"` and remove the `mode` parameter, and every case the assistant opens runs all nine phases.
+- **Add your own Lava.** Look something up in Rock before the command and pass it in, or add to the output after it.
+- **Write a new tool.** Call an action in a way that fits how you work, or write a tool that doesn't use `rockdetective` at all.
+
+### What editing can't change
+
+The rules live in the `rockdetective` command, not in the tool's wording. However a tool is reworded or rewritten, it still can't complete a phase with an unmet checklist, change a closed case, let a witness read a case, or let someone who isn't a Rock administrator search the IIS logs. So you can open the skill up to the people who run your AI agents without opening up your cases.
+
+### Things to know
+
+- **Your edits last.** The plugin adds each standard tool once. After that it never overwrites a tool, through Rock restarts and plugin updates, and a standard tool you delete stays deleted.
+- **A new tool has to be turned on for the agent.** A Rock agent keeps its own list of which tools are on. Open the agent, find the Rock Detective skill, and turn the new tool on. That goes for tools you add and for new standard tools that arrive with a later version. Tools that were already on stay on when you edit them.
+- **Renaming changes what the assistant sees.** The assistant knows a tool as the skill name plus the tool name, like `RockDetective__CreateCase`. Rename either and the name changes, so an assistant that is already connected needs to reconnect.
+- **Lava in a skill tool can use every Lava command.** Rock allows that because only people who can edit AI skills can write one. Anywhere else, `rockdetective` is a secured command like `sql` or `execute`: add it to the enabled Lava commands on the block or template that uses it.
+
+### Putting things back
+
+Click **Skill Settings** at the top right of the case list (it shows for people with Administrate on that block). The page lists every standard tool and marks it **Standard**, **Edited**, or **Missing**.
+
+- **Restore** puts one edited tool back to its standard name, description, parameters, and Lava.
+- **Add Back** brings back a standard tool you deleted.
+- **Restore Everything to Standard** does both for the whole skill, including what the assistant is told about the skill itself.
+
+None of these touch tools you added yourself. The standard version of everything is in [Skill Defaults](SkillDefaults.md), so you can also copy a single piece back by hand.
+
 ## Searching IIS logs
 
 IIS writes a line for every request that reaches your web server. That makes the logs some of the best evidence you have when a page is failing or slow, and Search IIS Logs lets you ask for exactly the slice you need.
@@ -237,4 +287,5 @@ Inside the block, `logEntries` is the list of entries and `logResult` has `Match
 - The assistant sees what its signed-in person can see, and can change what that person can change. Case security applies to every call, on both routes.
 - IIS logs include IP addresses and usernames, so only Rock administrators can search them, on both routes.
 - If you only want one route, leave the other closed: don't add the skill to an agent, or don't grant anyone the REST action.
-- The `iislogs` Lava command is off until an administrator enables it, the same as `execute` or `sql`.
+- The `iislogs` and `rockdetective` Lava commands are off until an administrator enables them, the same as `execute` or `sql`. The one exception is Lava inside an AI skill tool, where Rock turns every command on.
+- Editing the skill takes access to Rock's AI Skills pages, which is Rock Administration unless you open it up. Whoever edits a tool is writing Lava that runs on your server, so treat that access the way you treat access to the `sql` command.

@@ -17,7 +17,7 @@ com.yesuchum.RockDetective/           C# class library
   Jobs/                               Two RockJob classes
   Pdf/                                HTML report builder
   Rest/                               ApiControllerBase REST and MCP controllers
-  Agent/                              The Rock Detective skill for Rock's AI agents
+  Agent/                              Seeds the Rock Detective skill for Rock's AI agents
   Mcp/                                MCP tool definitions and handlers
   Logs/                               IIS W3C log reader
   Lava/                               The iislogs Lava command
@@ -35,7 +35,7 @@ The five blocks live under Admin Tools > Installed Plugins > Rock Detective:
 | Case Board | Case Board | The workspace for one case. Takes a `CaseFile` page parameter (IdKey or Guid). |
 | Witness Statement Entry | Witness Statement | Where a witness submits or declines a request. Takes a `Statement` page parameter. |
 | Terminology Settings | Terminology Settings | Where an administrator renames phases, terms, and gate wording for all categories or one. |
-| Skill Settings | Skill Settings | Where an administrator edits the wording an AI assistant reads for the skill and its tools. |
+| Skill Settings | Skill Settings | Shows which of the skill's standard tools were edited or deleted, and puts them back to standard. |
 
 Case Board and Witness Statement are set to never show in navigation. Block settings are ordinary attributes on the block classes. The Case Board reads its gate settings into `GateRequirementOptions` and falls back to the evaluator defaults when a value is blank. Both linked-page settings (`DetailPage` on the list, `WitnessStatementPage` on the board) are created by the migration itself.
 
@@ -176,40 +176,41 @@ Three tools are for witnesses and follow the Witness Statement page's rule inste
 
 ### Who can call what
 
-`Mcp/CaseAccess.cs` scopes every tool to the caller, so one agent can serve witnesses, investigators, and administrators. Each direct-endpoint definition carries a `ToolAudience` (Everyone, Investigator, Administrator); the same checks are inside the typed methods, so the skill route gets them too.
+`Mcp/CaseAccess.cs` scopes every tool to the caller, so one agent can serve witnesses, investigators, and administrators. Each direct-endpoint definition carries a `ToolAudience` (Everyone, Investigator, Administrator); the skill's Lava tools call the same `Execute`, so Rock's route gets the same checks.
 
 - **Investigator** means `Authorization.Authorized( new CaseFile(), EDIT, person )`, which is the entity-type security the migration seeds for Rock Detective Users and Rock Administration. `create_case` and `list_categories` require it.
 - **Reading a case** over MCP is narrower than `CaseFile.IsAuthorized( VIEW )`. That method grants View to every participant, and Rock's `GlobalDefault` allows View to everyone unless something denies it, which is fine behind page security but would let a witness read a case through an agent. `CaseAccess.CanReadCase` allows the owner, a participant in any role except Witness, or an investigator who passes the normal View check. `list_cases` and `get_case` use it.
 - **Administrator** means Administrate on `GlobalDefault`. `search_iis_logs` requires it on both routes.
-- The direct endpoint's `tools/list` is filtered by audience, and `Execute` refuses a tool outside the caller's audience. Rock's route lists whatever the agent has enabled, and a tool the caller may not use returns an error result.
-
-### Editable wording
-
-`Agent/SkillWording.cs` holds the text an assistant reads: the skill's description, purpose, usage, and guardrails, and a description and purpose for each of the 22 tools (48 items). The defaults are in code; overrides are a JSON dictionary in the global attribute `com_yesuchum_RockDetective_SkillWording`, edited on the Skill Settings block.
-
-Rock rewrites a code skill's name, description, purposes, usages, and guardrails from the class's attributes on every start, so wording edited in Rock's own skill screen does not last. The plugin gets around that without touching core: `SkillDescriptionAttribute`, `SkillPurposeAttribute`, `SkillUsageAttribute`, and `SkillGuardrailAttribute` subclass Rock's attributes and take a key instead of text, and their constructors pass `SkillWording.Get( key )` to the base. Rock reads them by reflection like any other attribute, and gets the current wording.
-
-Things to know:
-
-- Rock's MCP server sends a tool's purposes, usages, and guardrails to the client, not its description. Each tool method therefore carries `[SkillUsage( "X.Description" )]` as well, so the fuller description reaches the assistant on that route too. The direct endpoint sends the description as the tool description.
-- Saving on the block writes the attribute and then updates the AISkill and AISkillTool rows through their services (`SetAdditionalSettings( "SkillInstructionSettings", ... )` and `"ToolInstructionSettings"`), so Rock's route changes without a restart. If that fails the wording is still saved and applies at the next start, and the block says so.
-- The stored shape has to match what Rock's startup registration computes from the attributes (one purpose, one usage, one guardrail string per item), or Rock would rewrite the rows at the next start. It would rewrite them to the same custom wording, so nothing is lost either way.
-- `docs/SkillDefaults.md` is generated from `SkillWording.Items` in the built DLL. Regenerate it when the defaults change.
+- The direct endpoint's `tools/list` is filtered by audience, and `Execute` refuses a tool outside the caller's audience. Rock's route lists whatever the agent has enabled, and a tool the caller may not use returns a refusal with the reason.
 
 ### Agent skill
 
-`Agent/RockDetectiveSkill.cs` is a code-based skill for Rock's own AI agents. It inherits `Rock.AI.Agent.AgentSkillComponent`, which is public in Rock 19.4 and later, and carries `[AgentSkillGuid]`, `[EntityTypeGuid]`, and a description. Each tool is a public method returning `AgentToolResult` with `[AgentToolGuid]`, a `[Description]`, and `[Description]` on its parameters.
+The skill is a regular (non-code) Rock AI skill whose tools are Lava, so an administrator can edit all of it in Rock's AI Skills screen. Rock only lets a skill's tools be edited when the skill has no `CodeEntityTypeId`, and it rewrites a code skill from its class attributes on every start, so a code skill (an `AgentSkillComponent` subclass) can't be opened up this way. The plugin seeds rows instead.
 
-Nothing registers it. Rock finds every `AgentSkillComponent` with an `AgentSkillGuid` at startup and adds or updates the AISkill and AISkillTool rows. An administrator then adds the skill to an agent, and an agent of type MCP serves it at `api/v2/mcp/{slug}` through Rock's `McpController`. Tool names on the wire are `RockDetectiveSkill__ListCases`, `RockDetectiveSkill__GetCase`, and `RockDetectiveSkill__SearchIISLogs`.
+The pieces:
+
+- `Lava/RockDetectiveBlock.cs` is the `{% rockdetective tool:'name' %}{ json }{% endrockdetective %}` command. It renders its body, parses it as a JSON object, drops null properties (an argument the assistant left out renders as `null`), and calls `McpToolService.Execute( tool, arguments, currentPerson )`. The result is written as JSON. A `McpToolException` is written as `{"refused":true,"reason":"..."}`; anything else is logged and returned as a generic refusal. It is a secured command (`ILavaSecured`, permission `rockdetective`) and calls `IsAuthorized( context )` itself.
+- `Agent/SkillWording.cs` holds the default text: the skill's description, purpose, usage, and guardrails, and a name, description, and purpose for each tool.
+- `Agent/SkillToolCatalog.cs` builds the 22 default tools from the `McpToolService` definitions: the tool Guid, the name and wording from `SkillWording`, the parameters from the definition's JSON schema (string, number, or boolean, with required and allowed values), and the default Lava, which passes every parameter through `ToJSON`.
+- `Agent/SkillSeeder.cs` writes them through `AISkillService` and `AISkillToolService`. Settings go in with `SetAdditionalSettings( key, object )` under Rock's keys: `SkillInstructionSettings` on the skill, and `PromptInformationSettings` (the Lava in `Prompt`, the parameters in `PromptParameters`), `ToolInstructionSettings`, and `ToolAdditionalSettings` on each tool. Rock's settings classes are internal, so the seeder writes anonymous objects with the same property names.
+- `Agent/RockDetectiveStartup.cs` is an `IRockStartup` that calls `SkillSeeder.EnsureSkill()` on every start.
+
+What `EnsureSkill` does, and does not do:
+
+- It creates the skill if it is missing. The Guid is fixed (`2C5BE126-3BEC-4B15-A2F4-80FD685ABE84`) and so are the tool Guids, because an agent's list of enabled tools is a list of tool Guids.
+- It adds a standard tool only if it has never added it before. The Guids it has added are kept on the skill under its own settings key, `RockDetectiveSeedSettings`. That is how a tool an administrator deleted stays deleted, and how a tool that is new in a later version still arrives.
+- It never overwrites a tool that exists. The one exception is a tool still typed `ExecuteCode`, left over from a pre-release build where this was a code skill; those are converted in place.
+- `RestoreTool` and `RestoreAll` (called from the Skill Settings block) are the only things that write defaults over an existing tool. `GetStatus` compares each tool to its default (name, description, purpose, usage, Lava, and parameters) and reports Standard, Edited, or Missing.
 
 Things to know:
 
-- The current person comes from `AgentRequestContext.CurrentPerson`. Rock also has a public MCP route, so every tool refuses a null person.
-- Search IIS Logs requires Administrate on `Rock.Security.GlobalDefault`. An agent can be opened up to people who should never read server logs, so the tool checks for itself.
-- Results go through `Success( payload )`, which Rock serializes with System.Text.Json. Return plain objects or bags, not Newtonsoft `JToken`s.
-- A `McpToolException` becomes `Error( message )`.
-- Rock names the skill from the class name ("Rock Detective Skill") and a tool from its method name, or from `[AgentToolName]` when there is one. The attribute value is split on capitals like a method name, so it has to be written without spaces: `SearchIISLogs`, which Rock shows as "Search IIS Logs".
-- `Agent/RockDetectiveStartup.cs` is an `IRockStartup` that checks the skill's EntityType row on every start and restores its `AssemblyName` if it is blank or wrong. Rock blanks that column when it starts without the class (a rollback to 1.0.1, or an uninstall that leaves the entity type behind) and does not fill it back in when the class returns. With it blank, Rock cannot find the type behind the skill, so the agent lists no tools and a call fails with "The plugin collection does not contain a plugin".
+- Rock runs a Lava tool through its `LavaToolExecutor` with every Lava command enabled and the common merge fields, so `CurrentPerson` is the person the agent call is signed in as. The parameters are merge fields by name.
+- Whatever the Lava outputs is the tool's result, as text. That is why a refusal is a JSON object with `refused` and `reason` instead of an error status.
+- All permission and gate checks are in `McpToolService` and `CaseWorkflowService`, behind `Execute`. Nothing an administrator can type into a tool gets around them.
+- The tool name on the wire is the skill name and tool name with spaces and punctuation removed: `RockDetective__ListCases`, `RockDetective__SearchIISLogs`.
+- Rock's MCP server sends a tool's purposes, usages, and return description to the client, not its description. The seeder therefore also stores the description as the tool's one usage.
+- A parameter typed Number arrives in Lava as a double, so an integer argument can render as `25.0`. The handlers read arguments with `Value<int?>`, which accepts that.
+- `docs/SkillDefaults.md` is generated from the seeded rows of a clean install. Regenerate it when the defaults change.
 
 ### Direct endpoint
 
@@ -224,7 +225,7 @@ It is stateless JSON-RPC 2.0 over HTTP, protocol version `2025-03-26`, with no S
 
 Auth is Rock's own: `[Authenticate, Secured]` on the POST action, so a client sends a REST key in the `Authorization-Token` header and the action is secured like any other under Security > REST Controllers.
 
-Its tools are listed in `Mcp/McpToolService.cs` (read tools) and `Mcp/McpToolService.Write.cs` (the rest), one `McpToolDefinition` each (name, description, JSON schema, handler). To add a tool, write the typed method, add a definition, and add a matching method to the skill in `Agent/RockDetectiveSkill.Write.cs`. A handler throws `McpToolException` for anything the caller should read; that comes back as a normal result with `isError: true`, which is what MCP expects for tool failures. Anything else is logged to the exception log and returned as a generic error.
+Its tools are listed in `Mcp/McpToolService.cs` (read tools) and `Mcp/McpToolService.Write.cs` (the rest), one `McpToolDefinition` each (name, description, JSON schema, handler). To add a tool, write the typed method, add a definition, give it wording in `Agent/SkillWording.cs`, and give it a Guid in `Agent/SkillToolCatalog.cs` so it is seeded into the skill. A handler throws `McpToolException` for anything the caller should read; that comes back as a normal result with `isError: true`, which is what MCP expects for tool failures. Anything else is logged to the exception log and returned as a generic error.
 
 | Tool | Notes |
 |---|---|
@@ -268,7 +269,7 @@ Version 1.1.0 added four more, numbered for Rock 19.7 so they only run there or 
 - `_002_AddIisLogPathSetting`: the Rock Detective IIS Log Folder global attribute.
 - `_003_AddTerminologySettings`: the Category attribute for per-category wording (it looks up the Case File entity type Id for the qualifier) and the default terminology global attribute.
 - `_004_AddTerminologySettingsPage`: the Terminology Settings block entity type, block type, page, and block. The entity type is registered before the block type, for the same clean-install reason as in `_001`.
-- `_005_AddSkillSettingsPage`: the Rock Detective Skill Wording global attribute, and the Skill Settings block entity type, block type, page, and block.
+- `_005_AddSkillSettingsPage`: the Skill Settings block entity type, block type, page, and block. The skill itself is not in a migration; `SkillSeeder` adds it at startup.
 
 Everything is add-or-update or existence-guarded, so a re-run over surviving rows is safe. Plugin migrations only run on a full Rock application restart. Each `Down()` reverses its own migration. Post-1.0 changes go in new higher-numbered migrations; never edit a shipped one.
 
@@ -282,7 +283,7 @@ Renamed terms reach the partials through provide and inject. `caseFileDetail.obs
 
 ## Build and deploy
 
-The project is built inside a Rock source checkout at 19.7 or later. Older source will not compile the agent skill. The csproj references `..\Rock`, `..\Rock.Common`, `..\Rock.Enums`, `..\Rock.Rest`, `..\Rock.Lava`, and `..\Rock.Lava.Shared`, and the Obsidian build uses `..\Rock.JavaScript.Obsidian` and copies into `..\RockWeb`.
+The project is built inside a Rock source checkout at 19.7 or later. Older source does not have the AI skill models the seeder writes to. The csproj references `..\Rock`, `..\Rock.Common`, `..\Rock.Enums`, `..\Rock.Rest`, `..\Rock.Lava`, and `..\Rock.Lava.Shared`, and the Obsidian build uses `..\Rock.JavaScript.Obsidian` and copies into `..\RockWeb`.
 
 ```
 dotnet build com.yesuchum.RockDetective                    debug DLL, auto-copies to RockWeb\Bin

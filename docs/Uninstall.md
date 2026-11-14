@@ -55,11 +55,11 @@ All of this is optional housekeeping; none of it breaks anything if left behind.
 - **Jobs:** **Rock Detective Witness Reminders** and **Rock Detective Follow-Up Checks**.
 - **Entity types:** the rows named `com.yesuchum.RockDetective.*`. Delete any that are still there after the restart.
 - **Categories:** the four seeded Case File categories (Software Bug, Performance, Process, Ministry Operations), plus any you added.
-- **Attributes:** the three global attributes named "Rock Detective ..." under Admin Tools > General > Global Attributes, and the **Rock Detective Terminology** category attribute. This removes all four, along with any wording saved in them:
+- **Attributes:** the two global attributes named "Rock Detective ..." under Admin Tools > General > Global Attributes, and the **Rock Detective Terminology** category attribute. This removes all three, along with any wording saved in them:
   ```sql
   DELETE FROM [Attribute] WHERE [Key] LIKE 'com_yesuchum_RockDetective_%';
   ```
-- **AI skill:** the **Rock Detective Skill** under Admin Tools > System > AI Agents > AI Skills. Remove it from any agent first. Or run this, which does both:
+- **AI skill:** the **Rock Detective** skill under Admin Tools > System > AI Agents > AI Skills, with its tools and any tools you added to it. Remove it from any agent first. Or run this, which does both:
   ```sql
   DELETE [as] FROM [AIAgentSkill] AS [as] INNER JOIN [AISkill] AS [s] ON [s].[Id] = [as].[AISkillId] WHERE [s].[Guid] = '2C5BE126-3BEC-4B15-A2F4-80FD685ABE84';
   DELETE [t] FROM [AISkillTool] AS [t] INNER JOIN [AISkill] AS [s] ON [s].[Id] = [t].[AISkillId] WHERE [s].[Guid] = '2C5BE126-3BEC-4B15-A2F4-80FD685ABE84';
