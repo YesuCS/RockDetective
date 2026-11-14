@@ -318,6 +318,7 @@ Returns the whole case file as a PDF download (`application/pdf`, named `Case-{I
 | Field | Description |
 |---|---|
 | `IdKey`, `CaseNumber` | The case's key. Both hold the same value. |
+| `IssueDate` | When the problem started: the earliest Problem Start event on the timeline, or the created date when there is none. |
 | `Title`, `ProblemStatement` | |
 | `CategoryGuid`, `CategoryName` | |
 | `Mode`, `Classification`, `Status`, `CurrentPhase` | Integers; see Enums. |

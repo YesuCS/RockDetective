@@ -7,7 +7,8 @@ The current version is 1.1.0, and it needs Rock 19.7 or later.
 ## Documentation
 
 - [User Guide](docs/UserGuide.md): install, opening a case, the Case Board, witness statements, closing and follow-up, renaming things for your ministry, settings, security.
-- [MCP Guide](docs/Mcp.md): connecting an AI assistant through Rock's MCP server or the direct endpoint, the tools, letting an assistant work a case on its own, searching IIS logs, the `iislogs` Lava command.
+- [MCP Guide](docs/Mcp.md): connecting an AI assistant through Rock's MCP server or the direct endpoint, the tools, letting an assistant work a case on its own, who can do what, changing what the assistant is told, searching IIS logs, the `iislogs` Lava command.
+- [Skill Defaults](docs/SkillDefaults.md): the standard wording the assistant reads for the skill and each tool.
 - [REST API](docs/RestApi.md): every endpoint, request field, response shape, and enum value.
 - [Technical Specification](docs/TechnicalSpec.md): architecture, schema, entity plumbing, gate evaluator, terminology, witness flow, jobs, MCP endpoint, IIS logs, PDF, migrations, build and deploy.
 - [Uninstall Guide](docs/Uninstall.md): file removal, data removal SQL, Rock configuration cleanup.
@@ -20,7 +21,7 @@ com.yesuchum.RockDetective/           C# class library: entities, blocks,
                                       reader, PDF export, plugin migrations,
                                       gate evaluator.
 com.yesuchum.RockDetective.Obsidian/  Vue 3 and TypeScript Obsidian
-                                      frontends for the four blocks.
+                                      frontends for the five blocks.
 com.yesuchum.RockDetective.Tests/     MSTest unit tests for the gate
                                       evaluator.
 docs/                                 User guide, MCP guide, REST API,

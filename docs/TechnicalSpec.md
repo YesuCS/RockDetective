@@ -12,8 +12,8 @@ com.yesuchum.RockDetective/           C# class library
                                       WitnessReminderHelper
   Method/                             Method content, gate evaluator, phase state,
                                       terminology profile
-  Migrations/                         Plugin migrations (_001 through _004)
-  Blocks/                             Four RockBlockType backends
+  Migrations/                         Plugin migrations (_001 through _005)
+  Blocks/                             Five RockBlockType backends
   Jobs/                               Two RockJob classes
   Pdf/                                HTML report builder
   Rest/                               ApiControllerBase REST and MCP controllers
@@ -27,7 +27,7 @@ com.yesuchum.RockDetective.Obsidian/  Frontends, built with obsidian-build-tools
 com.yesuchum.RockDetective.Tests/     MSTest unit tests for the gate evaluator
 ```
 
-The four blocks live under Admin Tools > Installed Plugins > Rock Detective:
+The five blocks live under Admin Tools > Installed Plugins > Rock Detective:
 
 | Block | Page | Role |
 |---|---|---|
@@ -35,6 +35,7 @@ The four blocks live under Admin Tools > Installed Plugins > Rock Detective:
 | Case Board | Case Board | The workspace for one case. Takes a `CaseFile` page parameter (IdKey or Guid). |
 | Witness Statement Entry | Witness Statement | Where a witness submits or declines a request. Takes a `Statement` page parameter. |
 | Terminology Settings | Terminology Settings | Where an administrator renames phases, terms, and gate wording for all categories or one. |
+| Skill Settings | Skill Settings | Where an administrator edits the wording an AI assistant reads for the skill and its tools. |
 
 Case Board and Witness Statement are set to never show in navigation. Block settings are ordinary attributes on the block classes. The Case Board reads its gate settings into `GateRequirementOptions` and falls back to the evaluator defaults when a value is blank. Both linked-page settings (`DetailPage` on the list, `WitnessStatementPage` on the board) are created by the migration itself.
 
@@ -42,7 +43,7 @@ Case Board and Witness Statement are set to never show in navigation. Block sett
 
 Six tables, prefix `_com_yesuchum_RockDetective_`:
 
-- **CaseFile**: title, problem statement, CategoryId (Rock Category tree scoped to this entity type), mode (Simple or Advanced), classification, status (Open, Investigating, Solved, Closed, Reopened, Abandoned), current phase, PhaseStateJson, owner, postmortem fields, follow-up fields. The identifier people see everywhere (board, list, PDF, emails, and the `CaseNumber` field) is the case's IdKey, not the entity Id.
+- **CaseFile**: title, problem statement, CategoryId (Rock Category tree scoped to this entity type), mode (Simple or Advanced), classification, status (Open, Investigating, Solved, Closed, Reopened, Abandoned), current phase, PhaseStateJson, owner, postmortem fields, follow-up fields. The identifier people see (list, PDF, emails, and the `CaseNumber` field) is the case's IdKey, not the entity Id. The Case Board header leads with the issue date instead: `IssueDate` on the case bag is the earliest Problem Start event on the timeline, or the created date when there is none.
 - **CaseParticipant**: person (PersonAliasId) or external (name and contact), role (Owner, Champion, Recorder, Communicator, Member, Witness).
 - **CaseStatement**: one row per statement request or recorded statement; prompt, request status (None, Draft, Requested, Reminded, Submitted, Declined, ManuallyRecorded), statement text, optional BinaryFileId and Url. A participant can have any number.
 - **CaseEntry**: facts, timeline events, and evidence in one table; type, optional event date and timeline event type, source tracking (Direct, Witness, Experiment), corroboration flag, optional BinaryFileId and Url.
@@ -171,7 +172,29 @@ Two things are specific to this path. Entries it adds get `CaseEntrySource.Agent
 
 Reopen, resume, abandon, delete, and sending witness requests are deliberately not exposed. Those stay on the Case Board.
 
-Three tools are for witnesses and follow the Witness Statement page's rule instead of the editor rule: `ListMyStatementRequests` returns only open requests whose participant is the caller, and `SubmitStatement` and `DeclineStatement` work when the request was addressed to the caller (or the caller has Edit on the case). They return a confirmation, not case progress, and complete the in-Rock reminder the same way the page does. A witness-only setup is an MCP agent with just those three tools enabled and View granted to the witnesses.
+Three tools are for witnesses and follow the Witness Statement page's rule instead of the editor rule: `ListMyStatementRequests` returns only open requests whose participant is the caller, and `SubmitStatement` and `DeclineStatement` work when the request was addressed to the caller (or the caller has Edit on the case). They return a confirmation, not case progress, and complete the in-Rock reminder the same way the page does.
+
+### Who can call what
+
+`Mcp/CaseAccess.cs` scopes every tool to the caller, so one agent can serve witnesses, investigators, and administrators. Each direct-endpoint definition carries a `ToolAudience` (Everyone, Investigator, Administrator); the same checks are inside the typed methods, so the skill route gets them too.
+
+- **Investigator** means `Authorization.Authorized( new CaseFile(), EDIT, person )`, which is the entity-type security the migration seeds for Rock Detective Users and Rock Administration. `create_case` and `list_categories` require it.
+- **Reading a case** over MCP is narrower than `CaseFile.IsAuthorized( VIEW )`. That method grants View to every participant, and Rock's `GlobalDefault` allows View to everyone unless something denies it, which is fine behind page security but would let a witness read a case through an agent. `CaseAccess.CanReadCase` allows the owner, a participant in any role except Witness, or an investigator who passes the normal View check. `list_cases` and `get_case` use it.
+- **Administrator** means Administrate on `GlobalDefault`. `search_iis_logs` requires it on both routes.
+- The direct endpoint's `tools/list` is filtered by audience, and `Execute` refuses a tool outside the caller's audience. Rock's route lists whatever the agent has enabled, and a tool the caller may not use returns an error result.
+
+### Editable wording
+
+`Agent/SkillWording.cs` holds the text an assistant reads: the skill's description, purpose, usage, and guardrails, and a description and purpose for each of the 22 tools (48 items). The defaults are in code; overrides are a JSON dictionary in the global attribute `com_yesuchum_RockDetective_SkillWording`, edited on the Skill Settings block.
+
+Rock rewrites a code skill's name, description, purposes, usages, and guardrails from the class's attributes on every start, so wording edited in Rock's own skill screen does not last. The plugin gets around that without touching core: `SkillDescriptionAttribute`, `SkillPurposeAttribute`, `SkillUsageAttribute`, and `SkillGuardrailAttribute` subclass Rock's attributes and take a key instead of text, and their constructors pass `SkillWording.Get( key )` to the base. Rock reads them by reflection like any other attribute, and gets the current wording.
+
+Things to know:
+
+- Rock's MCP server sends a tool's purposes, usages, and guardrails to the client, not its description. Each tool method therefore carries `[SkillUsage( "X.Description" )]` as well, so the fuller description reaches the assistant on that route too. The direct endpoint sends the description as the tool description.
+- Saving on the block writes the attribute and then updates the AISkill and AISkillTool rows through their services (`SetAdditionalSettings( "SkillInstructionSettings", ... )` and `"ToolInstructionSettings"`), so Rock's route changes without a restart. If that fails the wording is still saved and applies at the next start, and the block says so.
+- The stored shape has to match what Rock's startup registration computes from the attributes (one purpose, one usage, one guardrail string per item), or Rock would rewrite the rows at the next start. It would rewrite them to the same custom wording, so nothing is lost either way.
+- `docs/SkillDefaults.md` is generated from `SkillWording.Items` in the built DLL. Regenerate it when the defaults change.
 
 ### Agent skill
 
@@ -240,17 +263,18 @@ The cover prints the case's IdKey, not the entity Id. `Pdf/CaseFileReport.cs` bu
 - the three system communications
 - the two jobs and the Reminder Days job attribute
 
-Version 1.1.0 added three more, numbered for Rock 19.7 so they only run there or later:
+Version 1.1.0 added four more, numbered for Rock 19.7 so they only run there or later:
 
 - `_002_AddIisLogPathSetting`: the Rock Detective IIS Log Folder global attribute.
 - `_003_AddTerminologySettings`: the Category attribute for per-category wording (it looks up the Case File entity type Id for the qualifier) and the default terminology global attribute.
 - `_004_AddTerminologySettingsPage`: the Terminology Settings block entity type, block type, page, and block. The entity type is registered before the block type, for the same clean-install reason as in `_001`.
+- `_005_AddSkillSettingsPage`: the Rock Detective Skill Wording global attribute, and the Skill Settings block entity type, block type, page, and block.
 
 Everything is add-or-update or existence-guarded, so a re-run over surviving rows is safe. Plugin migrations only run on a full Rock application restart. Each `Down()` reverses its own migration. Post-1.0 changes go in new higher-numbered migrations; never edit a shipped one.
 
 ## Frontend
 
-The Obsidian project has one `.obs` file per block (four now, with `terminologySettings.obs`), with partials for the Case Board panels (`phaseStepper`, `entriesPanel`, `hypothesesPanel`, `experimentsPanel`, `participantsPanel`) and the list's grid settings. Grid filters on the list are saved as person preferences.
+The Obsidian project has one `.obs` file per block (five now, with `terminologySettings.obs` and `skillSettings.obs`), with partials for the Case Board panels (`phaseStepper`, `entriesPanel`, `hypothesesPanel`, `experimentsPanel`, `participantsPanel`) and the list's grid settings. Grid filters on the list are saved as person preferences.
 
 The Case Board renders the phase stepper and a phase dropdown together and switches between them with CSS. Below 768 pixels the stepper is hidden and the dropdown shows, with a check mark on completed phases and disabled options for phases that Restrict Phase Jumping holds back. Timeline entries are sorted by event date in the entries panel; the other entry types keep their stored order.
 

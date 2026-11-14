@@ -11,8 +11,8 @@ This guide covers the two ways to connect, the tools the assistant gets, how it 
 | What it is | Rock Detective shows up as a skill you add to one of Rock's own AI agents. | An MCP endpoint that belongs to Rock Detective. |
 | Address | `/api/v2/mcp/{your agent's slug}` | `/api/com_yesuchum/rockdetective/mcp` |
 | Best for | Most churches. Rock Detective sits next to Rock's other skills (people, groups, giving) in one connection. | A quick connection with nothing but a REST key, or a script that only needs Rock Detective. |
-| Who can search IIS logs | Rock administrators. | Whoever you allow on the REST action. |
-| Choosing which tools are on | Per agent, tool by tool. | All tools, always. |
+| Who can search IIS logs | Rock administrators. | Rock administrators. |
+| Choosing which tools are on | Per agent, tool by tool, on top of what each person is allowed. | Each person is offered only the tools they are allowed. |
 
 Both give the assistant the same tools and the same answers. Start with Rock's MCP server unless you have a reason not to.
 
@@ -24,14 +24,14 @@ Rock registers a **Rock Detective Skill** on its own when the plugin is installe
 
 1. Go to **Admin Tools > System > AI Agents > Agents**.
 2. Open the MCP agent you already use, or add a new agent, set its type to **MCP**, and give it a slug like `rock-detective`.
-3. Add the **Rock Detective Skill** to the agent and choose which of its tools to turn on. Leave the tools that change cases off if the assistant should only read.
+3. Add the **Rock Detective Skill** to the agent and turn its tools on. You can leave all of them on: the skill checks who is asking on every call, so a witness, an investigator, and an administrator can share one agent. Leave the tools that change cases off only if nobody on this agent should change cases.
 4. Save. The agent's address is your Rock address plus `/api/v2/mcp/` plus the slug:
 
 ```
 https://rock.example.org/api/v2/mcp/rock-detective
 ```
 
-Connect your assistant to that address the same way you connect to any other Rock MCP agent. Who can use it is controlled by the agent's security in Rock.
+Connect your assistant to that address the same way you connect to any other Rock MCP agent. Who can reach the agent is controlled by the agent's security in Rock, and new agents are open to Rock Administration only, so give View to the people who should use it.
 
 The tools show up to the assistant with names like **List Cases**, **Create Case**, and **Search IIS Logs**.
 
@@ -127,24 +127,39 @@ What keeps the result trustworthy:
 - **The Champion stays a person.** The assistant can only sign off as Champion if the person it is signed in as is the Champion on that case. Otherwise it can waive the Champion with a reason when it opens a small case, or a person signs off on the Case Board.
 - **A closed case is closed.** The assistant can't change a closed or abandoned case. Reopening and resuming happen on the Case Board.
 
-The assistant works as the person it signed in with. It can open cases as that person, and it can only change cases that person owns or has Edit on. To let it read without changing anything, connect through Rock's MCP server and turn the changing tools off on the agent. The direct endpoint always offers every tool, so use it only where the assistant is meant to work cases.
+The assistant works as the person it signed in with, and can do exactly what that person can (see Who can do what below). To let an assistant read without changing anything, connect through Rock's MCP server and turn the changing tools off on the agent.
 
 For a script that only needs to push data in, the [REST API](RestApi.md) is still there.
 
-## Letting a witness answer through an assistant
+## Who can do what
 
-A witness doesn't need any access to the case to answer a statement request. The same is true over MCP: the three witness tools only ever act on requests addressed to the person who is signed in.
+One agent serves everyone. The skill checks who is signed in on every call, so you don't need separate agents for separate kinds of people.
 
-To give witnesses that and nothing more, set up a second agent just for them:
+| Who | What they can do |
+|---|---|
+| Someone who was asked for a statement (a witness) | See the requests addressed to them, and submit or decline. Nothing else. |
+| Someone who works cases: a person in the Rock Detective Users role, a case's owner, or a team member on it | Everything a witness can, plus list and read the cases they have access to, open cases, and work them. |
+| A Rock administrator | All of that, plus Search IIS Logs. |
 
-1. Go to **Admin Tools > System > AI Agents > Agents** and add an agent with the type **MCP** and a slug like `rock-detective-witness`.
-2. Add the **Rock Detective Skill** and turn on only **List My Statement Requests**, **Submit Statement**, and **Decline Statement**.
-3. On the agent's security, give View to the people who may be asked for statements. New agents are open to Rock Administration only.
+A few details behind that table:
 
-A witness who connects to that agent can see what they were asked, answer it, or decline it. They can't list cases, read a case, search logs, or open anything. A request has to be sent from the Case Board before it shows up for them, and an external witness (someone who is not in Rock) can't use this at all, since there is no Rock person to sign in as.
+- **A witness can't read the case they are a witness on.** They get the question they were asked, the case title, and who asked. That is narrower than the Case Board on purpose: an assistant summarizing a whole case to a witness would taint the statement you want from them.
+- **Opening a case takes the Rock Detective Users role** (or Rock Administration).
+- **Changing a case takes Edit on it, or being its owner**, the same as on the Case Board.
+- **A statement request has to be sent** from the Case Board before the witness sees it.
+- **An external witness** (someone who is not in Rock) can't use this, since there is no Rock person to sign in as.
 
-Keep witnesses off the direct endpoint. It always offers every tool, and the witness agent is the only way to offer three.
+On the direct endpoint, the list of tools itself is trimmed to what the person may use. On Rock's MCP server the agent lists every tool you turned on, and a tool the person isn't allowed to use answers with a short explanation instead of doing anything.
 
+## Changing what the assistant is told
+
+Everything the assistant reads about the skill is editable: what it's for, how to use it, its guardrails, and the description and purpose of each tool. Click **Skill Settings** at the top right of the case list (for people with Administrate on that block).
+
+Leave a box blank to keep the standard wording, which shows in gray. A change reaches both routes as soon as you save, and it stays through Rock restarts and plugin updates. **Reset to Standard Wording** puts everything back.
+
+This changes what the assistant is told, not what it is allowed to do. The gates, case security, and the table above are enforced by Rock Detective whatever the wording says. Don't edit the skill in Rock's own AI Skills screen; Rock resets a code skill's wording from the plugin every time it starts, so edits made there don't last.
+
+The standard wording is listed in [Skill Defaults](SkillDefaults.md).
 ## Searching IIS logs
 
 IIS writes a line for every request that reaches your web server. That makes the logs some of the best evidence you have when a page is failing or slow, and Search IIS Logs lets you ask for exactly the slice you need.
@@ -220,6 +235,6 @@ Inside the block, `logEntries` is the list of entries and `logResult` has `Match
 ## Security
 
 - The assistant sees what its signed-in person can see, and can change what that person can change. Case security applies to every call, on both routes.
-- IIS logs include IP addresses and usernames. Through Rock's MCP server, only Rock administrators can search them. Through the direct endpoint, anyone you allow on the REST action can, so give that to the same people you'd let read the logs on the server.
+- IIS logs include IP addresses and usernames, so only Rock administrators can search them, on both routes.
 - If you only want one route, leave the other closed: don't add the skill to an agent, or don't grant anyone the REST action.
 - The `iislogs` Lava command is off until an administrator enables it, the same as `execute` or `sql`.

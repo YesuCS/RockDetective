@@ -23,7 +23,7 @@ Use this when the Rock Shop isn't an option, like a staging box or an instance w
 3. Copy everything inside the package's `content` folder into the Rock web root, the folder the Rock site points to in IIS (the one with `web.config` and `Bin` in it), and merge it with the folders already there. When you're done, these should exist:
    ```
    Bin\com.yesuchum.RockDetective.dll
-   Plugins\com_yesuchum\RockDetective\   (four .obs.js files)
+   Plugins\com_yesuchum\RockDetective\   (five .obs.js files)
    ```
 4. Start the application pool. The plugin migration runs on startup and creates the tables, pages, security role, system communications, and jobs.
 
@@ -31,7 +31,7 @@ Only the `content` folder gets copied. Anything else in the package is for the R
 
 ### What you get
 
-- Pages under Admin Tools > Installed Plugins > Rock Detective: the case list, the Case Board, the Witness Statement page, and Terminology Settings. The Case Board and Witness Statement page are hidden from navigation and open from the list and from emails.
+- Pages under Admin Tools > Installed Plugins > Rock Detective: the case list, the Case Board, the Witness Statement page, Terminology Settings, and Skill Settings. The Case Board and Witness Statement page are hidden from navigation and open from the list and from emails.
 - A **Rock Detective Users** security role with View and Edit on case files. Rock Administration gets View, Edit, and Administrate.
 - Two scheduled jobs, **Rock Detective Witness Reminders** and **Rock Detective Follow-Up Checks**, both active by default.
 - Three system communications you can reword under Admin Tools > Communications > System Communications (search "Rock Detective").
@@ -50,6 +50,10 @@ On the case list, click the plus button. One modal covers the first two phases:
 Simple mode collapses the flow for easy problems. The case starts at the Fact List phase, the Define the Team and Timeline phases are skipped, and the gate minimums drop. Advanced mode runs all nine phases and starts at Define the Team. A Simple case can be upgraded to Advanced from the board; it never goes back.
 
 ## The Case Board
+
+### The header
+
+The top of the board reads **Date | Name | Status**. The date is when the problem started, taken from the Problem Start event on the timeline. Until the case has one, it shows the day the case was opened; hover over it to see which you're looking at. The category and mode sit at the right.
 
 ### Phases
 
@@ -96,7 +100,7 @@ A witness can be a Rock person or an external person (a name plus contact text).
 2. Send it. They get an email with a link to the Witness Statement page, and an in-Rock reminder that links to the same page.
 3. They submit or decline, and can attach a file or a link. Declining can include a reason.
 
-A witness can also answer through an AI assistant instead of the page, if you set up a witness-only MCP agent. They see only the requests addressed to them and can submit or decline, nothing else. See the [MCP Guide](Mcp.md).
+A witness can also answer through an AI assistant instead of the page. They see only the requests addressed to them and can submit or decline, nothing else, even on the same agent your investigators use. See the [MCP Guide](Mcp.md).
 
 The reminder completes on its own when the request is answered, declined, recorded, or deleted. If a request sits unanswered for the configured number of days, the reminder job emails them once. You can send more reminders by hand, and a request shows an overdue flag on the case list after 7 days.
 
@@ -242,6 +246,7 @@ These are under Admin Tools > General > Global Attributes.
 |---|---|---|
 | Rock Detective IIS Log Folder | Blank | The folder the IIS log search reads from, including its subfolders. Blank means `C:\inetpub\logs\LogFiles`. See the [MCP Guide](Mcp.md). |
 | Rock Detective Default Terminology | Blank | Where the All categories wording is stored. Change it on Terminology Settings, not here. |
+| Rock Detective Skill Wording | Blank | Where custom wording for the AI skill is stored. Change it on Skill Settings, not here. |
 
 ### Witness Reminders job
 
