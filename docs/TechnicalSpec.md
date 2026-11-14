@@ -42,7 +42,7 @@ Case Board and Witness Statement are set to never show in navigation. Block sett
 
 Six tables, prefix `_com_yesuchum_RockDetective_`:
 
-- **CaseFile**: title, problem statement, CategoryId (Rock Category tree scoped to this entity type), mode (Simple or Advanced), classification, status (Open, Investigating, Solved, Closed, Reopened, Abandoned), current phase, PhaseStateJson, owner, postmortem fields, follow-up fields. The case number shown everywhere is just the entity Id.
+- **CaseFile**: title, problem statement, CategoryId (Rock Category tree scoped to this entity type), mode (Simple or Advanced), classification, status (Open, Investigating, Solved, Closed, Reopened, Abandoned), current phase, PhaseStateJson, owner, postmortem fields, follow-up fields. The identifier people see everywhere (board, list, PDF, emails, and the `CaseNumber` field) is the case's IdKey, not the entity Id.
 - **CaseParticipant**: person (PersonAliasId) or external (name and contact), role (Owner, Champion, Recorder, Communicator, Member, Witness).
 - **CaseStatement**: one row per statement request or recorded statement; prompt, request status (None, Draft, Requested, Reminded, Submitted, Declined, ManuallyRecorded), statement text, optional BinaryFileId and Url. A participant can have any number.
 - **CaseEntry**: facts, timeline events, and evidence in one table; type, optional event date and timeline event type, source tracking (Direct, Witness, Experiment), corroboration flag, optional BinaryFileId and Url.
@@ -154,7 +154,7 @@ Behavior to know about:
 
 ## MCP
 
-There are two routes to the same 19 tools. Both call the same typed methods, so the logic and the security checks live in one place: the three read tools are on `Mcp/McpToolService.cs` (`ListCases`, `GetCase`, `SearchIisLogs`) and the sixteen that change cases are on `Mcp/CaseWorkflowService.cs`.
+There are two routes to the same 22 tools. Both call the same typed methods, so the logic and the security checks live in one place: the three read tools are on `Mcp/McpToolService.cs` (`ListCases`, `GetCase`, `SearchIisLogs`) and the nineteen that change things are on `Mcp/CaseWorkflowService.cs`.
 
 ### Case workflow service
 
@@ -170,6 +170,8 @@ There are two routes to the same 19 tools. Both call the same typed methods, so 
 Two things are specific to this path. Entries it adds get `CaseEntrySource.Agent` (3), which the board renders as "Added by an AI assistant" and the PDF as "AI Assistant". And every method returns a progress object (current phase, its guidance and prompts, the checklist with each line's state, whether the phase is ready to complete, and a next step), which is what lets an assistant run the method without a person steering it.
 
 Reopen, resume, abandon, delete, and sending witness requests are deliberately not exposed. Those stay on the Case Board.
+
+Three tools are for witnesses and follow the Witness Statement page's rule instead of the editor rule: `ListMyStatementRequests` returns only open requests whose participant is the caller, and `SubmitStatement` and `DeclineStatement` work when the request was addressed to the caller (or the caller has Edit on the case). They return a confirmation, not case progress, and complete the in-Rock reminder the same way the page does. A witness-only setup is an MCP agent with just those three tools enabled and View granted to the witnesses.
 
 ### Agent skill
 

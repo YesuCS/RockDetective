@@ -96,6 +96,8 @@ A witness can be a Rock person or an external person (a name plus contact text).
 2. Send it. They get an email with a link to the Witness Statement page, and an in-Rock reminder that links to the same page.
 3. They submit or decline, and can attach a file or a link. Declining can include a reason.
 
+A witness can also answer through an AI assistant instead of the page, if you set up a witness-only MCP agent. They see only the requests addressed to them and can submit or decline, nothing else. See the [MCP Guide](Mcp.md).
+
 The reminder completes on its own when the request is answered, declined, recorded, or deleted. If a request sits unanswered for the configured number of days, the reminder job emails them once. You can send more reminders by hand, and a request shows an overdue flag on the case list after 7 days.
 
 The Case Board has a setting to send requests as soon as they are created instead of leaving them as drafts.
@@ -137,7 +139,7 @@ Any case that isn't closed can be **abandoned**. It stays on the other tabs, loc
 
 ### Export PDF
 
-**Export PDF** on the board produces the case file as a report. The cover shows the case's key (like `OX9mQWPQo8`) instead of its number, since the number is only a database Id and would make your first ministry review look like the third of something. The report has the cover, problem statement, timeline, facts, evidence, probability tree, experiment log, witness statements, and postmortem. Sections with nothing in them are left out.
+**Export PDF** on the board produces the case file as a report. The cover shows the case's key (like `OX9mQWPQo8`), the same identifier the Case Board, the case list, and the emails use. Rock Detective used to show the database Id there, which made a church's first ministry review look like the third of something. The report has the cover, problem statement, timeline, facts, evidence, probability tree, experiment log, witness statements, and postmortem. Sections with nothing in them are left out.
 
 ## Making it sound like your ministry
 

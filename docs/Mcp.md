@@ -103,6 +103,14 @@ Those three only read. The rest change cases:
 | Champion Sign-Off | Records the Champion's sign-off. Only works for the person who is the Champion. |
 | Close Case | Closes the case with its postmortem and an optional follow-up date. |
 
+And three are for witnesses:
+
+| Tool | What it does |
+|---|---|
+| List My Statement Requests | Shows the signed-in person the requests waiting on them, with the question and who asked. Nothing else about the case. |
+| Submit Statement | Submits their answer to a request that was addressed to them. |
+| Decline Statement | Declines a request that was addressed to them, with an optional reason. |
+
 ## Letting an assistant work a case on its own
 
 Every tool that changes a case answers with where the case stands: the current phase, that phase's guidance and prompts, its checklist with each line marked met or not, and the next step. That is what lets an assistant run the method without a person steering it. It opens a case, reads what the phase asks for, does that work, and moves on.
@@ -122,6 +130,20 @@ What keeps the result trustworthy:
 The assistant works as the person it signed in with. It can open cases as that person, and it can only change cases that person owns or has Edit on. To let it read without changing anything, connect through Rock's MCP server and turn the changing tools off on the agent. The direct endpoint always offers every tool, so use it only where the assistant is meant to work cases.
 
 For a script that only needs to push data in, the [REST API](RestApi.md) is still there.
+
+## Letting a witness answer through an assistant
+
+A witness doesn't need any access to the case to answer a statement request. The same is true over MCP: the three witness tools only ever act on requests addressed to the person who is signed in.
+
+To give witnesses that and nothing more, set up a second agent just for them:
+
+1. Go to **Admin Tools > System > AI Agents > Agents** and add an agent with the type **MCP** and a slug like `rock-detective-witness`.
+2. Add the **Rock Detective Skill** and turn on only **List My Statement Requests**, **Submit Statement**, and **Decline Statement**.
+3. On the agent's security, give View to the people who may be asked for statements. New agents are open to Rock Administration only.
+
+A witness who connects to that agent can see what they were asked, answer it, or decline it. They can't list cases, read a case, search logs, or open anything. A request has to be sent from the Case Board before it shows up for them, and an external witness (someone who is not in Rock) can't use this at all, since there is no Rock person to sign in as.
+
+Keep witnesses off the direct endpoint. It always offers every tool, and the witness agent is the only way to offer three.
 
 ## Searching IIS logs
 

@@ -31,7 +31,7 @@ On the Case Board, a case owner can edit their own case even without Edit securi
 
 ### IDs
 
-Cases, entries, hypotheses, experiments, participants, and statements are identified by their `IdKey`, the hashed Rock ID that every response returns. Use those values in routes and request bodies. `CaseNumber` on a case is the plain numeric ID, shown for people, not used in routes.
+Cases, entries, hypotheses, experiments, participants, and statements are identified by their `IdKey`, the hashed Rock ID that every response returns. Use those values in routes and request bodies. `CaseNumber` on a case is the same value as its `IdKey`. It used to be the plain numeric ID; since 1.1.0 the key is what people see everywhere, so a church's first case in a category doesn't show up as number 3.
 
 People and categories are referenced by Guid: `PersonAliasGuid` for participants and owners, a Person Guid for the `owner` filter, and a Category Guid for case categories.
 
@@ -309,7 +309,7 @@ This creates a new statement in Draft status and sets the participant's role to 
 
 `GET /cases/{idKey}/pdf`
 
-Returns the whole case file as a PDF download (`application/pdf`, named `Case-{CaseNumber}.pdf`), including witness statements.
+Returns the whole case file as a PDF download (`application/pdf`, named `Case-{IdKey}.pdf`), including witness statements.
 
 ## Response shapes
 
@@ -317,7 +317,7 @@ Returns the whole case file as a PDF download (`application/pdf`, named `Case-{C
 
 | Field | Description |
 |---|---|
-| `IdKey`, `CaseNumber` | Hashed key for routes, and the plain numeric ID for people. |
+| `IdKey`, `CaseNumber` | The case's key. Both hold the same value. |
 | `Title`, `ProblemStatement` | |
 | `CategoryGuid`, `CategoryName` | |
 | `Mode`, `Classification`, `Status`, `CurrentPhase` | Integers; see Enums. |
