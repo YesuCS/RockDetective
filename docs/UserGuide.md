@@ -38,7 +38,7 @@ Only the `content` folder gets copied. Anything else in the package is for the R
 - Four case categories: Software Bug, Performance, Process, and Ministry Operations.
 - A **Rock Detective** skill for Rock's AI agents, with tools you can edit, plus a direct MCP endpoint, so an AI assistant can open and work cases through every phase, document what it finds, and search the web server's IIS logs. See the [MCP Guide](Mcp.md).
 
-The migration does not set any page security, so the pages inherit it from Installed Plugins. If people outside Rock Administration will use Rock Detective, give them View on the Rock Detective page, the Case Board, and the Witness Statement page, and put them in the Rock Detective Users role. Terminology Settings is for administrators. Only people with Administrate on its block can see or change the wording, and everyone else gets a notice instead.
+People in the **Rock Detective Users** role can open the case list and the Case Board, and can view and edit cases. The pages sit under Admin Tools > Installed Plugins, which the rest of your staff can't browse to, so give your investigators a link or add the Rock Detective page to a menu they use. A witness who is not in the role needs View on the Witness Statement page to answer there; they can also answer through an AI assistant. Terminology Settings and Skill Settings are for administrators. Only people with Administrate on its block can see or change the wording, and everyone else gets a notice instead.
 
 ## The case list
 
@@ -76,12 +76,12 @@ Each phase shows its guidance, prompts to work through, a notes field, and a gat
 | 5. Fact List | At least 3 facts (Advanced) or 1 fact (Simple). |
 | 6. Probability Tree | At least 2 root hypotheses (Advanced) or 1 (Simple), each with a probability above 0. |
 | 7. Experiments | At least 1 experiment with a recorded outcome, where changes were reverted, justified, or never made. |
-| 8. Reevaluate | A confirmed hypothesis with a supporting experiment, or a loop back for another round. If the case has a Champion and a confirmed hypothesis, the Champion also signs off. |
+| 8. Reevaluate | A confirmed hypothesis with a supporting experiment. If nothing is confirmed, loop back for another round. If the case has a Champion, the Champion also signs off on the confirmed explanation. |
 | 9. Postmortem | Impact, solution, contributing factors, lessons learned, prevention measures, and action items. |
 
 The numbers are the defaults, which match the method's ideal. The minimums are block settings (see Settings below).
 
-Phase 8 has two extra buttons. **Loop Back to Facts** sends the case back to phase 5 and reopens the loop phases you had completed. **Champion Sign-Off** shows up only for the person assigned as Champion. Completing Reevaluate with a confirmed hypothesis marks the case Solved.
+Phase 8 has two extra buttons. **Loop Back to Facts** sends the case back to phase 5 and reopens the loop phases you had completed. A loop back does not carry anything forward: the next time the case reaches phase 8 it still needs a confirmed hypothesis with a supporting experiment, a hypothesis you ruled out no longer counts toward the Probability Tree, and an earlier sign-off is cleared. **Champion Sign-Off** shows up for the person assigned as Champion once a hypothesis is confirmed. When the Champion is someone outside Rock, the case owner sees **Record Champion Sign-Off** and records it for them. Completing Reevaluate with a confirmed hypothesis marks the case Solved.
 
 ### Panels
 
@@ -102,7 +102,11 @@ A witness can be a Rock person or an external person (a name plus contact text).
 
 1. Create a request on their row in Team and Witnesses, with a prompt that says what you want to know. The request starts as a draft.
 2. Send it. They get an email with a link to the Witness Statement page, and an in-Rock reminder that links to the same page.
-3. They submit or decline, and can attach a file or a link. Declining can include a reason.
+3. They submit or decline, and can attach a file or a link. Declining can include a reason. An answer is final; once a request is submitted or declined it can't be changed from the page.
+
+A witness sees the question, the case title, and who asked. They can't open the Case Board, the PDF, or the case through the API unless they are also on the team or in the Rock Detective Users role. A reminder for the same request can be sent once an hour at most.
+
+Links on facts, evidence, timeline events, and statements have to be full web addresses that start with `http://` or `https://`. Anything else is refused.
 
 A witness can also answer through an AI assistant instead of the page. They see only the requests addressed to them and can submit or decline, nothing else, even on the same agent your investigators use. See the [MCP Guide](Mcp.md).
 

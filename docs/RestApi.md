@@ -90,7 +90,7 @@ These four case categories ship with the plugin:
 |---|---|---|---|
 | GET | `/cases` | View | List of full cases |
 | GET | `/cases/{idKey}` | View | Full case |
-| POST | `/cases` | Logged in | Full case |
+| POST | `/cases` | Rock Detective Users role | Full case |
 | PATCH | `/cases/{idKey}` | Edit | Full case |
 | GET | `/cases/{idKey}/entries` | View | List of entries |
 | POST | `/cases/{idKey}/entries` | Edit | Entry |
@@ -196,7 +196,7 @@ Returns the case's entries in the order they were added. The Case Board sorts ti
 | `text` | string | Yes | The fact, event, or evidence description. |
 | `eventDateTime` | date | No | When it happened. Use it for timeline events. |
 | `timelineEventType` | int | No | A TimelineEventType, for timeline events. |
-| `url` | string | No | A link, for evidence. |
+| `url` | string | No | A link, for evidence. It has to start with `http://` or `https://`, or the request is refused. |
 | `isCorroborated` | bool | No | Whether the fact has been backed up by a second source. Defaults to false. |
 
 Entries added through the API are marked with source Direct and go to the end of the list. File attachments can only be added on the Case Board.
@@ -220,7 +220,7 @@ Entries added through the API are marked with source Direct and go to the end of
 |---|---|---|---|
 | `name` | string | Yes | Short name of the possible cause. Up to 300 characters. |
 | `description` | string | No | More detail. |
-| `probability` | int | No | 0 to 100. Values outside that range are clamped. |
+| `probability` | int | No | 0 to 100. A value outside that range is refused. |
 | `parentHypothesisIdKey` | string | No | Makes this a child of another hypothesis in the probability tree. |
 
 New hypotheses start as Proposed.
@@ -231,7 +231,7 @@ New hypotheses start as Proposed.
 
 | Field | Type | Description |
 |---|---|---|
-| `probability` | int | 0 to 100, clamped. |
+| `probability` | int | 0 to 100. A value outside that range is refused. |
 | `status` | int | A HypothesisStatus. |
 | `ruledOutReason` | string | Why it was ruled out. |
 

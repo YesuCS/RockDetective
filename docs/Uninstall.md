@@ -53,6 +53,7 @@ All of this is optional housekeeping; none of it breaks anything if left behind.
 - **Security role:** the **Rock Detective Users** group.
 - **System communications:** the three titled "Rock Detective ..." under Admin Tools > Communications > System Communications.
 - **Jobs:** **Rock Detective Witness Reminders** and **Rock Detective Follow-Up Checks**.
+- **Security rules:** the uninstall removes the two rules version 1.1.0 adds (View on the Rock Detective page for Rock Detective Users, and the All Users deny on Case File View). The Rock Detective Users role itself and the rules from 1.0 stay until you delete them.
 - **Entity types:** the rows named `com.yesuchum.RockDetective.*`. Delete any that are still there after the restart.
 - **Categories:** the four seeded Case File categories (Software Bug, Performance, Process, Ministry Operations), plus any you added.
 - **Attributes:** the two global attributes named "Rock Detective ..." under Admin Tools > General > Global Attributes, and the **Rock Detective Terminology** category attribute. This removes all three, along with any wording saved in them:

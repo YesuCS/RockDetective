@@ -96,7 +96,7 @@ There are 22. Every one is a **Lava** tool: Rock fills in the parameters the ass
 
 | Parameter | Type | Required | Instructions |
 |---|---|---|---|
-| `idKey` | Text | Yes | The IdKey of the case file, as returned by list_cases. |
+| `idKey` | Text | Yes | The IdKey of the case file, from the list cases tool. |
 
 ```liquid
 {% rockdetective tool:'get_case' %}
@@ -108,28 +108,34 @@ There are 22. Every one is a **Lava** tool: Rock fills in the parameters the ass
 
 ### Search IIS Logs
 
-**Description:** Searches the web server's IIS log files for recent requests. Times are returned in the server's local time zone and results are capped. Only Rock administrators can use it.
+**Description:** Searches the web server's IIS log files for requests in a time range. Narrow it with the range and filters, because results are capped. Times are in the server's local time zone, and the values of sensitive query string parameters are redacted. Only Rock administrators can use it.
 
 **Purpose:** Gathers request-level evidence such as errors and slow pages.
 
 | Parameter | Type | Required | Instructions |
 |---|---|---|---|
-| `minutes` | Number | No | How many minutes back to search. Default 60, max 10080 (7 days). |
+| `minutes` | Number | No | How many minutes back to search. Default 60, max 10080 (7 days). Ignored when start is given. |
+| `start` | Text | No | Start of a time range in the server's local time, as ISO 8601, like 2026-11-08T08:00:00. Up to 30 days back. |
+| `end` | Text | No | End of the time range. Defaults to now. A range can span up to 7 days. |
 | `status` | Number | No | Only return requests with this HTTP status code (e.g. 500). |
 | `pathContains` | Text | No | Only return requests whose URL path contains this text (case-insensitive). |
 | `method` | Text | No | Only return requests with this HTTP method (e.g. POST). |
 | `minTimeTakenMs` | Number | No | Only return requests that took at least this many milliseconds. |
-| `limit` | Number | No | Maximum number of entries to return. Default 100, max 500. |
+| `limit` | Number | No | Maximum number of entries to return, newest first. Default 50, max 500. |
+| `includeUserAgent` | True or false | No | Also return each request's browser user agent. Defaults to false to keep results small. |
 
 ```liquid
 {% rockdetective tool:'search_iis_logs' %}
 {
   "minutes": {{ minutes | ToJSON }},
+  "start": {{ start | ToJSON }},
+  "end": {{ end | ToJSON }},
   "status": {{ status | ToJSON }},
   "pathContains": {{ pathContains | ToJSON }},
   "method": {{ method | ToJSON }},
   "minTimeTakenMs": {{ minTimeTakenMs | ToJSON }},
-  "limit": {{ limit | ToJSON }}
+  "limit": {{ limit | ToJSON }},
+  "includeUserAgent": {{ includeUserAgent | ToJSON }}
 }
 {% endrockdetective %}
 ```
@@ -154,7 +160,7 @@ There are 22. Every one is a **Lava** tool: Rock fills in the parameters the ass
 
 | Parameter | Type | Required | Instructions |
 |---|---|---|---|
-| `statementIdKey` | Text | Yes | The IdKey of the request, from list_my_statement_requests. |
+| `statementIdKey` | Text | Yes | The IdKey of the request, from the list my statement requests tool. |
 | `statement` | Text | Yes | What the person saw or knows, in their own words. |
 | `url` | Text | No | An optional link that goes with the statement. |
 
@@ -176,7 +182,7 @@ There are 22. Every one is a **Lava** tool: Rock fills in the parameters the ass
 
 | Parameter | Type | Required | Instructions |
 |---|---|---|---|
-| `statementIdKey` | Text | Yes | The IdKey of the request, from list_my_statement_requests. |
+| `statementIdKey` | Text | Yes | The IdKey of the request, from the list my statement requests tool. |
 | `reason` | Text | No |  |
 
 ```liquid
@@ -210,7 +216,7 @@ There are 22. Every one is a **Lava** tool: Rock fills in the parameters the ass
 |---|---|---|---|
 | `title` | Text | Yes | A short handle for the case. |
 | `problemStatement` | Text | Yes | One clear, concise statement of the problem with nothing unverified and nothing that is not germane. |
-| `category` | Text | Yes | The category name or guid, from list_categories. |
+| `category` | Text | Yes | The category name or guid, from the list categories tool. |
 | `mode` | Text | No | Simple for easy problems, Advanced for difficult ones. Defaults to Simple. Allowed values: Simple, Advanced. |
 | `isProblemStatementVerified` | True or false | No | True only if every detail in the problem statement has been verified and all of it is germane. Advanced cases need this to complete the problem definition phase. |
 
@@ -234,7 +240,7 @@ There are 22. Every one is a **Lava** tool: Rock fills in the parameters the ass
 
 | Parameter | Type | Required | Instructions |
 |---|---|---|---|
-| `caseIdKey` | Text | Yes | The IdKey of the case file, as returned by list_cases or create_case. |
+| `caseIdKey` | Text | Yes | The IdKey of the case file, from the list cases tool or the create case tool. |
 | `title` | Text | No |  |
 | `problemStatement` | Text | No |  |
 | `category` | Text | No | The category name or guid. |
@@ -260,7 +266,7 @@ There are 22. Every one is a **Lava** tool: Rock fills in the parameters the ass
 
 | Parameter | Type | Required | Instructions |
 |---|---|---|---|
-| `caseIdKey` | Text | Yes | The IdKey of the case file, as returned by list_cases or create_case. |
+| `caseIdKey` | Text | Yes | The IdKey of the case file, from the list cases tool or the create case tool. |
 | `role` | Text | No | Defaults to Member. Allowed values: Champion, Recorder, Communicator, Member, Witness. |
 | `personAliasGuid` | Text | No | The person alias guid of a Rock person. |
 | `externalName` | Text | No | The name of someone who is not in Rock. |
@@ -280,13 +286,13 @@ There are 22. Every one is a **Lava** tool: Rock fills in the parameters the ass
 
 ### Waive Champion
 
-**Description:** Records that this case will go without a Champion, with the reason. Use it for problems small enough not to need an independent sanity check.
+**Description:** Records that this case will go without a Champion, with the reason. Use it for problems small enough not to need an independent sanity check. It is refused when the case already has a Champion.
 
 **Purpose:** Satisfies the team gate when no Champion is needed.
 
 | Parameter | Type | Required | Instructions |
 |---|---|---|---|
-| `caseIdKey` | Text | Yes | The IdKey of the case file, as returned by list_cases or create_case. |
+| `caseIdKey` | Text | Yes | The IdKey of the case file, from the list cases tool or the create case tool. |
 | `reason` | Text | Yes | Why a Champion is not needed. |
 
 ```liquid
@@ -306,8 +312,8 @@ There are 22. Every one is a **Lava** tool: Rock fills in the parameters the ass
 
 | Parameter | Type | Required | Instructions |
 |---|---|---|---|
-| `caseIdKey` | Text | Yes | The IdKey of the case file, as returned by list_cases or create_case. |
-| `participantIdKey` | Text | Yes | The IdKey of the participant, from add_participant or get_case. |
+| `caseIdKey` | Text | Yes | The IdKey of the case file, from the list cases tool or the create case tool. |
+| `participantIdKey` | Text | Yes | The IdKey of the participant, from the add participant tool or the get case tool. |
 | `statement` | Text | Yes |  |
 | `url` | Text | No | An optional link that goes with the statement. |
 | `addToFacts` | True or false | No | Also add the statement to the fact list. Defaults to false. |
@@ -328,18 +334,18 @@ There are 22. Every one is a **Lava** tool: Rock fills in the parameters the ass
 
 ### Add Entry
 
-**Description:** Adds a fact, a timeline event, or a piece of evidence to the case. Facts must be specific, correct, and pertinent. The entry is marked as added by an AI assistant.
+**Description:** Adds a fact, a timeline event, or a piece of evidence to the case. Facts must be specific, correct, and pertinent. Only facts count toward the fact list checklist; evidence and timeline events do not. The entry is marked as added by an AI assistant.
 
 **Purpose:** Records what is known, when things happened, and the evidence for it.
 
 | Parameter | Type | Required | Instructions |
 |---|---|---|---|
-| `caseIdKey` | Text | Yes | The IdKey of the case file, as returned by list_cases or create_case. |
+| `caseIdKey` | Text | Yes | The IdKey of the case file, from the list cases tool or the create case tool. |
 | `entryType` | Text | No | Defaults to Fact. Allowed values: Fact, TimelineEvent, Evidence. |
 | `text` | Text | Yes |  |
-| `eventDateTime` | Text | No | When a timeline event happened, as an ISO 8601 date and time. Required for timeline events. |
+| `eventDateTime` | Text | No | When a timeline event happened, as an ISO 8601 date and time. Without an offset it is read as the church's local time. Required for timeline events. |
 | `timelineEventType` | Text | No | For timeline events. The timeline needs one ProblemStart. Allowed values: ProblemStart, LastKnownGood, Change, Activity, Other. |
-| `url` | Text | No | An optional link, mostly for evidence. |
+| `url` | Text | No | An optional link, mostly for evidence. It has to start with http:// or https://. |
 | `isCorroborated` | True or false | No | For facts: true only when evidence backs the fact. Defaults to false. |
 
 ```liquid
@@ -364,7 +370,7 @@ There are 22. Every one is a **Lava** tool: Rock fills in the parameters the ass
 
 | Parameter | Type | Required | Instructions |
 |---|---|---|---|
-| `caseIdKey` | Text | Yes | The IdKey of the case file, as returned by list_cases or create_case. |
+| `caseIdKey` | Text | Yes | The IdKey of the case file, from the list cases tool or the create case tool. |
 | `name` | Text | Yes | The candidate cause, stated so it can be tested. |
 | `description` | Text | No |  |
 | `probability` | Number | No | How likely this cause is, 0 to 100. A root hypothesis only counts toward the gate when this is above 0. |
@@ -390,7 +396,7 @@ There are 22. Every one is a **Lava** tool: Rock fills in the parameters the ass
 
 | Parameter | Type | Required | Instructions |
 |---|---|---|---|
-| `caseIdKey` | Text | Yes | The IdKey of the case file, as returned by list_cases or create_case. |
+| `caseIdKey` | Text | Yes | The IdKey of the case file, from the list cases tool or the create case tool. |
 | `hypothesisIdKey` | Text | Yes |  |
 | `probability` | Number | No | 0 to 100. |
 | `status` | Text | No | Allowed values: Proposed, Testing, RuledOut, Confirmed. |
@@ -416,7 +422,7 @@ There are 22. Every one is a **Lava** tool: Rock fills in the parameters the ass
 
 | Parameter | Type | Required | Instructions |
 |---|---|---|---|
-| `caseIdKey` | Text | Yes | The IdKey of the case file, as returned by list_cases or create_case. |
+| `caseIdKey` | Text | Yes | The IdKey of the case file, from the list cases tool or the create case tool. |
 | `hypothesisIdKey` | Text | No |  |
 | `hypothesisText` | Text | No | Use when the hypothesis is not in the probability tree. |
 | `testPlan` | Text | No |  |
@@ -442,7 +448,7 @@ There are 22. Every one is a **Lava** tool: Rock fills in the parameters the ass
 
 | Parameter | Type | Required | Instructions |
 |---|---|---|---|
-| `caseIdKey` | Text | Yes | The IdKey of the case file, as returned by list_cases or create_case. |
+| `caseIdKey` | Text | Yes | The IdKey of the case file, from the list cases tool or the create case tool. |
 | `experimentIdKey` | Text | Yes |  |
 | `actualResult` | Text | No |  |
 | `outcome` | Text | Yes | Allowed values: Supported, RuledOut, Inconclusive. |
@@ -474,7 +480,7 @@ There are 22. Every one is a **Lava** tool: Rock fills in the parameters the ass
 
 | Parameter | Type | Required | Instructions |
 |---|---|---|---|
-| `caseIdKey` | Text | Yes | The IdKey of the case file, as returned by list_cases or create_case. |
+| `caseIdKey` | Text | Yes | The IdKey of the case file, from the list cases tool or the create case tool. |
 | `phase` | Number | No | The phase number, 1 to 9. Defaults to the current phase. |
 | `notes` | Text | Yes |  |
 
@@ -496,7 +502,7 @@ There are 22. Every one is a **Lava** tool: Rock fills in the parameters the ass
 
 | Parameter | Type | Required | Instructions |
 |---|---|---|---|
-| `caseIdKey` | Text | Yes | The IdKey of the case file, as returned by list_cases or create_case. |
+| `caseIdKey` | Text | Yes | The IdKey of the case file, from the list cases tool or the create case tool. |
 
 ```liquid
 {% rockdetective tool:'complete_phase' %}
@@ -508,13 +514,13 @@ There are 22. Every one is a **Lava** tool: Rock fills in the parameters the ass
 
 ### Loop Back
 
-**Description:** Sends the case back to the fact list for another round through facts, the probability tree, experiments, and reevaluation. Use it when no cause is confirmed yet.
+**Description:** Sends the case back to the fact list for another round through facts, the probability tree, experiments, and reevaluation. Use it from the reevaluate phase when no cause is confirmed yet.
 
 **Purpose:** Starts another round of investigation.
 
 | Parameter | Type | Required | Instructions |
 |---|---|---|---|
-| `caseIdKey` | Text | Yes | The IdKey of the case file, as returned by list_cases or create_case. |
+| `caseIdKey` | Text | Yes | The IdKey of the case file, from the list cases tool or the create case tool. |
 
 ```liquid
 {% rockdetective tool:'loop_back' %}
@@ -526,13 +532,13 @@ There are 22. Every one is a **Lava** tool: Rock fills in the parameters the ass
 
 ### Champion Sign-Off
 
-**Description:** Records the Champion's sign-off on the confirmed explanation. It only works when the signed-in person is the Champion on the case.
+**Description:** Records the Champion's sign-off on the confirmed explanation. It works once a hypothesis is confirmed with a supporting experiment, for the person who is the Champion. When the Champion is someone outside Rock, the case owner records it for them.
 
 **Purpose:** Lets the Champion approve the confirmed explanation.
 
 | Parameter | Type | Required | Instructions |
 |---|---|---|---|
-| `caseIdKey` | Text | Yes | The IdKey of the case file, as returned by list_cases or create_case. |
+| `caseIdKey` | Text | Yes | The IdKey of the case file, from the list cases tool or the create case tool. |
 
 ```liquid
 {% rockdetective tool:'champion_sign_off' %}
@@ -550,7 +556,7 @@ There are 22. Every one is a **Lava** tool: Rock fills in the parameters the ass
 
 | Parameter | Type | Required | Instructions |
 |---|---|---|---|
-| `caseIdKey` | Text | Yes | The IdKey of the case file, as returned by list_cases or create_case. |
+| `caseIdKey` | Text | Yes | The IdKey of the case file, from the list cases tool or the create case tool. |
 | `impactSummary` | Text | Yes | What the problem cost or affected. |
 | `solutionSummary` | Text | Yes | What fixed it. |
 | `contributingFactors` | Text | Yes |  |

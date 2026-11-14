@@ -64,7 +64,7 @@ These were all learned the hard way; do not undo them:
 
 ### Security
 
-`CaseFile.ParentAuthority` is the entity-type default, which the migration seeds for the Rock Detective Users role (View, Edit) and Rock Administration (View, Edit, Administrate). `IsAuthorized` adds one rule: the owner and every Rock-person participant is granted View. Edit is never granted that way.
+`CaseFile.ParentAuthority` is the entity-type default, which the migration seeds for the Rock Detective Users role (View, Edit) and Rock Administration (View, Edit, Administrate). `IsAuthorized` adds one rule: the owner and every Rock-person participant except a Witness is granted View. Edit is never granted that way. Migration `_006` also adds a deny for All Users on View after the role rules, because Rock's `GlobalDefault` would otherwise allow View to anyone who can reach a page or endpoint. A witness therefore gets no View from being on the case, on the Case Board, the PDF, the REST API, or MCP.
 
 The Case Board treats the owner as an editor too (`CanEdit` is Edit security or ownership), and every block action re-checks that server-side. The REST controller checks Edit security only, so an owner without Edit security can work a case on the board but not through the API. The witness page authorizes by matching the logged-in person to the participant's alias; anyone with Edit on the case can also open it.
 
@@ -79,7 +79,8 @@ Gate rules worth knowing:
 - The timeline gate counts all events toward the minimum and separately requires one Problem Start.
 - A root hypothesis counts only when its probability is above 0.
 - An experiment counts when its outcome is not Pending and its changes are reverted, justified, or were never made.
-- Reevaluate passes with a confirmed hypothesis that has a Supported experiment, or once the case has looped back at least once. With a Champion and a confirmed hypothesis, it also needs the Champion's sign-off.
+- Reevaluate passes with a confirmed hypothesis that has a Supported experiment. A loop back does not satisfy it. With a Champion and that confirmed hypothesis, it also needs the Champion's sign-off.
+- The Probability Tree count leaves out root hypotheses that are Ruled Out.
 - Postmortem requires impact, solution, contributing factors, lessons learned, prevention measures, and action items. The problem summary line is met by the problem statement.
 
 Hypothesis status changes are not gated; confirming one without a supporting experiment just leaves the Reevaluate gate unmet.
@@ -111,7 +112,7 @@ All of these are block actions on the Case Board that re-check gates and permiss
 | Create case | Status Open. Define the Problem and Classify are marked complete. Simple starts at Fact List, Advanced at Define the Team. |
 | Complete Phase | Re-runs the gate, then moves to the next phase that is not auto-skipped. Open becomes Investigating at Fact List or later. Completing Reevaluate with a confirmed hypothesis sets Solved. |
 | Set current phase | Moves the case. With Restrict Phase Jumping on, rejects any phase still NotStarted. The stepper disables those buttons, but the server check is the real gate. |
-| Loop back | Increments the loop count, sets completed loop phases (5 to 8) back to in progress, and moves to Fact List. |
+| Loop back | Only from Reevaluate. Increments the loop count, clears the Champion sign-off, sets completed loop phases (5 to 8) back to in progress, and moves to Fact List. |
 | Upgrade mode | Simple to Advanced only. |
 | Close | Runs the Postmortem gate, saves the postmortem, sets Closed and an optional follow-up date. |
 | Reopen | Sets Reopened, clears the closed date and follow-up confirmation, and moves to Fact List. |
@@ -166,7 +167,8 @@ There are two routes to the same 22 tools. Both call the same typed methods, so 
 - Gate minimums come from the Case Board block's own settings (looked up by the block guid the migration seeds), falling back to the evaluator defaults. The REST API's phase PATCH still uses defaults only.
 - Close Case requires the last phase and a complete postmortem.
 - Experiment learnings become one corroborated fact, as on the board.
-- Champion Sign-Off requires the caller to be the Champion.
+- Champion Sign-Off requires a confirmed hypothesis with a Supported experiment, and the caller to be the Champion. When every Champion on the case is external (no PersonAliasId), the owner or someone with Edit records it. The rules are in `Data/CaseRules.cs` and the Case Board uses the same ones.
+- `Data/CaseRules.cs` also holds the shared input checks: links must be absolute http or https (`IsSafeUrl`, applied on every write path, and `CaseMapper` drops anything else on the way out), probability 0 to 100, title up to 200 characters, and `ToRockLocalTime`, which converts a date that carries an offset into the Rock organization time zone using the offset in effect on that date. A date with no offset is stored as given.
 
 Two things are specific to this path. Entries it adds get `CaseEntrySource.Agent` (3), which the board renders as "Added by an AI assistant" and the PDF as "AI Assistant". And every method returns a progress object (current phase, its guidance and prompts, the checklist with each line's state, whether the phase is ready to complete, and a next step), which is what lets an assistant run the method without a person steering it.
 
@@ -179,7 +181,7 @@ Three tools are for witnesses and follow the Witness Statement page's rule inste
 `Mcp/CaseAccess.cs` scopes every tool to the caller, so one agent can serve witnesses, investigators, and administrators. Each direct-endpoint definition carries a `ToolAudience` (Everyone, Investigator, Administrator); the skill's Lava tools call the same `Execute`, so Rock's route gets the same checks.
 
 - **Investigator** means `Authorization.Authorized( new CaseFile(), EDIT, person )`, which is the entity-type security the migration seeds for Rock Detective Users and Rock Administration. `create_case` and `list_categories` require it.
-- **Reading a case** over MCP is narrower than `CaseFile.IsAuthorized( VIEW )`. That method grants View to every participant, and Rock's `GlobalDefault` allows View to everyone unless something denies it, which is fine behind page security but would let a witness read a case through an agent. `CaseAccess.CanReadCase` allows the owner, a participant in any role except Witness, or an investigator who passes the normal View check. `list_cases` and `get_case` use it.
+- **Reading a case** over MCP goes through `CaseAccess.CanReadCase`, which allows the owner, a participant in any role except Witness, or an investigator who passes the normal View check. `list_cases` and `get_case` use it. `CaseFile.IsAuthorized( VIEW )` follows the same rule for witnesses now, so the Case Board, PDF, and REST API agree with it.
 - **Administrator** means Administrate on `GlobalDefault`. `search_iis_logs` requires it on both routes.
 - The direct endpoint's `tools/list` is filtered by audience, and `Execute` refuses a tool outside the caller's audience. Rock's route lists whatever the agent has enabled, and a tool the caller may not use returns a refusal with the reason.
 
@@ -240,7 +242,8 @@ Its tools are listed in `Mcp/McpToolService.cs` (read tools) and `Mcp/McpToolSer
 - The folder comes from the global attribute `com_yesuchum_RockDetective_IisLogPath`, or `%SystemDrive%\inetpub\logs\LogFiles` when that is blank. It searches subfolders. The folder is never a caller argument, so a caller cannot aim the reader at another directory.
 - It reads the `#Fields:` header of each file to find columns, so custom field selections work. Lines that don't parse are skipped.
 - Filters: minutes back, status code, path contains, method, and minimum time taken.
-- Hard caps: 500 entries, 10 files, 7 days. Files are opened with `FileShare.ReadWrite` so IIS can keep writing.
+- Hard caps: 500 entries, 10 files, 7 days per search, and a range can start up to 30 days back. Files are opened with `FileShare.ReadWrite` so IIS can keep writing. Matches are counted, but only the newest entries up to the limit are held in memory.
+- `RedactQuery` replaces the value of any query string parameter whose name contains a sensitive word (rckipid, token, key, code, password, secret, signature, auth, session, and a few more) with `[redacted]`. It runs in the reader, so the MCP tool and the Lava command both get redacted values.
 - Log times are UTC on disk and are returned in server local time.
 - A missing or unreadable folder returns a `Warning` on the result. It never throws, so the MCP tool and the Lava command both degrade to an explanation.
 
@@ -269,6 +272,7 @@ Version 1.1.0 added four more, numbered for Rock 19.7 so they only run there or 
 - `_002_AddIisLogPathSetting`: the Rock Detective IIS Log Folder global attribute.
 - `_003_AddTerminologySettings`: the Category attribute for per-category wording (it looks up the Case File entity type Id for the qualifier) and the default terminology global attribute.
 - `_004_AddTerminologySettingsPage`: the Terminology Settings block entity type, block type, page, and block. The entity type is registered before the block type, for the same clean-install reason as in `_001`.
+- `_006_AddRoleAccess`: View on the Rock Detective page for the Rock Detective Users role (the child pages inherit it), and the All Users deny on Case File View described under security.
 - `_005_AddSkillSettingsPage`: the Skill Settings block entity type, block type, page, and block. The skill itself is not in a migration; `SkillSeeder` adds it at startup.
 
 Everything is add-or-update or existence-guarded, so a re-run over surviving rows is safe. Plugin migrations only run on a full Rock application restart. Each `Down()` reverses its own migration. Post-1.0 changes go in new higher-numbered migrations; never edit a shipped one.

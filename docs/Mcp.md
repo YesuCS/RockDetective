@@ -124,7 +124,9 @@ What keeps the result trustworthy:
 - **The gates apply to the assistant too.** Complete Phase only works when every line of the phase's checklist is met. When it isn't, the assistant is told what is still needed and has to do that work first. The minimums are the same ones set on the Case Board block.
 - **What the assistant adds is marked.** Facts, timeline events, and evidence it adds show "Added by an AI assistant" on the Case Board and "AI Assistant" as the source in the PDF.
 - **It has to say what is verified.** A fact is only marked corroborated when the assistant says evidence backs it, and an Advanced case can't leave Define the Problem until the problem statement is marked verified.
-- **The Champion stays a person.** The assistant can only sign off as Champion if the person it is signed in as is the Champion on that case. Otherwise it can waive the Champion with a reason when it opens a small case, or a person signs off on the Case Board.
+- **The Champion stays a person.** The assistant can only sign off as Champion if the person it is signed in as is the Champion on that case, and only once a hypothesis is confirmed with a supporting experiment. When the Champion is someone outside Rock, the case owner records their sign-off. On a small case with no Champion, it can waive the Champion with a reason.
+- **A loop back is not a shortcut.** Loop Back only works from the reevaluate phase, and the next round has to earn its own confirmed hypothesis. Ruled-out hypotheses stop counting, and an earlier sign-off is cleared.
+- **Bad input is refused, not fixed up.** A probability outside 0 to 100, a title over 200 characters, a date it can't read, or a link that isn't a web address all come back with a reason.
 - **A closed case is closed.** The assistant can't change a closed or abandoned case. Reopening and resuming happen on the Case Board.
 
 The assistant works as the person it signed in with, and can do exactly what that person can (see Who can do what below). To let an assistant read without changing anything, connect through Rock's MCP server and turn the changing tools off on the agent.
@@ -143,7 +145,7 @@ One agent serves everyone. The skill checks who is signed in on every call, so y
 
 A few details behind that table:
 
-- **A witness can't read the case they are a witness on.** They get the question they were asked, the case title, and who asked. That is narrower than the Case Board on purpose: an assistant summarizing a whole case to a witness would taint the statement you want from them.
+- **A witness can't read the case they are a witness on.** They get the question they were asked, the case title, and who asked. The same goes for the Case Board, the PDF, and the REST API: a summary of the whole case would taint the statement you want from them.
 - **Opening a case takes the Rock Detective Users role** (or Rock Administration).
 - **Changing a case takes Edit on it, or being its owner**, the same as on the Case Board.
 - **A statement request has to be sent** from the Case Board before the witness sees it.
@@ -216,14 +218,19 @@ IIS writes a line for every request that reaches your web server. That makes the
 
 | Option | What it does |
 |---|---|
-| `minutes` | How far back to look. Default 60, up to 10080 (7 days). |
+| `minutes` | How far back to look. Default 60, up to 10080 (7 days). Ignored when `start` is given. |
+| `start` | The start of a time range, in the server's local time, like `2026-11-08T08:00:00`. Up to 30 days back. |
+| `end` | The end of the range. Defaults to now. A range can span up to 7 days. |
 | `status` | Only requests with this HTTP status, like `500`. |
 | `pathContains` | Only requests whose URL path contains this text. Case doesn't matter. |
 | `method` | Only this HTTP method, like `POST`. |
 | `minTimeTakenMs` | Only requests that took at least this many milliseconds. |
-| `limit` | The most entries to return. Default 100, up to 500. |
+| `limit` | The most entries to return, newest first. Default 50, up to 500. |
+| `includeUserAgent` | Also return each request's browser. Off by default to keep results small. |
 
-Options combine, so "POSTs to the connect card that took over 5 seconds in the last hour" is one call. Each entry comes back with the time, method, path, query string, status, time taken, client IP, username, and browser.
+Options combine, so "POSTs to the connect card that took over 5 seconds between 8 and noon last Sunday" is one call. Each entry comes back with the time, method, path, query string, status, time taken, client IP, and username. The result also says how many requests matched in all, so the assistant knows when to narrow the search.
+
+Query strings can carry secrets, like the `rckipid` token in a personalized email link. Rock Detective replaces the value of any parameter whose name looks sensitive (`rckipid`, and names containing token, key, code, password, secret, signature, auth, or session) with `[redacted]` before the result leaves the server. The parameter names stay, so you can still see what kind of link was followed.
 
 Things to ask your assistant once it's connected:
 
@@ -279,13 +286,16 @@ It has to be enabled first, like any secured Lava command: add `iislogs` to the 
 | `method` | `method` |
 | `mintimetaken` | `minTimeTakenMs` |
 | `limit` | `limit` |
+| `start` | `start` |
+| `end` | `end` |
 
 Inside the block, `logEntries` is the list of entries and `logResult` has `MatchedCount`, `FilesScanned`, `IsTruncated`, `LogPath`, and `Warning`. Each entry has `DateTime`, `Method`, `UriStem`, `UriQuery`, `Status`, `SubStatus`, `TimeTakenMs`, `ClientIp`, `UserName`, and `UserAgent`.
 
 ## Security
 
 - The assistant sees what its signed-in person can see, and can change what that person can change. Case security applies to every call, on both routes.
-- IIS logs include IP addresses and usernames, so only Rock administrators can search them, on both routes.
+- IIS logs include IP addresses and usernames, so only Rock administrators can search them, on both routes. Sensitive query string values are redacted before they reach the assistant.
+- The direct endpoint only accepts `application/json`, which keeps a web page in someone's browser from posting to it behind their back.
 - If you only want one route, leave the other closed: don't add the skill to an agent, or don't grant anyone the REST action.
 - The `iislogs` and `rockdetective` Lava commands are off until an administrator enables them, the same as `execute` or `sql`. The one exception is Lava inside an AI skill tool, where Rock turns every command on.
 - Editing the skill takes access to Rock's AI Skills pages, which is Rock Administration unless you open it up. Whoever edits a tool is writing Lava that runs on your server, so treat that access the way you treat access to the `sql` command.
