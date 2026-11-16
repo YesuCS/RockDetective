@@ -200,7 +200,8 @@ The rules live in the `rockdetective` command, not in the tool's wording. Howeve
 - **Your edits last.** The plugin adds each standard tool once. After that it never overwrites a tool, through Rock restarts and plugin updates, and a standard tool you delete stays deleted.
 - **A new tool has to be turned on for the agent.** A Rock agent keeps its own list of which tools are on. Open the agent, find the Rock Detective skill, and turn the new tool on. That goes for tools you add and for new standard tools that arrive with a later version. Tools that were already on stay on when you edit them.
 - **Renaming changes what the assistant sees.** The assistant knows a tool as the skill name plus the tool name, like `RockDetective__CreateCase`. Rename either and the name changes, so an assistant that is already connected needs to reconnect.
-- **Lava in a skill tool can use every Lava command.** Rock allows that because only people who can edit AI skills can write one. Anywhere else, `rockdetective` is a secured command like `sql` or `execute`: tick **Rock Detective** in the Enabled Lava Commands on the block or template that uses it.
+- **`rockdetective` only works inside a skill tool.** It is there for the Rock Detective skill and nothing else. Used anywhere else in Rock, such as a page, an email, or a workflow, it does nothing and answers that it only works inside a Rock Detective AI skill tool. It does not show up in Rock's lists of Lava commands to enable, because there is nothing for you to enable.
+- **Lava in a skill tool can use every Lava command.** Rock allows that because only people who can edit AI skills can write one.
 
 ### Putting things back
 
@@ -297,5 +298,6 @@ Inside the block, `logEntries` is the list of entries and `logResult` has `Match
 - IIS logs include IP addresses and usernames, so only Rock administrators can search them, on both routes. Sensitive query string values are redacted before they reach the assistant.
 - The direct endpoint only accepts `application/json`, which keeps a web page in someone's browser from posting to it behind their back.
 - If you only want one route, leave the other closed: don't add the skill to an agent, or don't grant anyone the REST action.
-- The `iislogs` and `rockdetective` Lava commands are off until an administrator enables them, the same as `execute` or `sql`. They show up as **IIS Logs** and **Rock Detective** wherever Rock lists Lava commands to enable. Rock builds that list from every secured command it finds, so seeing them there is expected, and the plugin never ticks them for you. The one exception is Lava inside an AI skill tool, where Rock turns every command on.
+- The `iislogs` Lava command is off until an administrator enables it, the same as `execute` or `sql`. It shows up as **IIS Logs** wherever Rock lists Lava commands to enable. Rock builds that list from every secured command it finds, so seeing it there is expected, and the plugin never ticks it for you. The one exception is Lava inside an AI skill tool, where Rock turns every command on.
+- The `rockdetective` Lava command is not in that list and can't be enabled anywhere. It only runs inside a Rock Detective skill tool, as the signed-in person, under the same gates and permissions as everything else.
 - Editing the skill takes access to Rock's AI Skills pages, which is Rock Administration unless you open it up. Whoever edits a tool is writing Lava that runs on your server, so treat that access the way you treat access to the `sql` command.

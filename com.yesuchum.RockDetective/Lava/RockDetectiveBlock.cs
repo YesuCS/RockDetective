@@ -13,8 +13,12 @@ using com.yesuchum.RockDetective.Mcp;
 
 namespace com.yesuchum.RockDetective.Lava
 {
-    public class RockDetectiveBlock : LavaBlockBase, ILavaSecured
+    public class RockDetectiveBlock : LavaBlockBase
     {
+        private const string AgentContextKey = "AgentContext";
+
+        private const string OutsideSkillMessage = "The rockdetective command only works inside a Rock Detective AI skill tool.";
+
         private string _attributesMarkup;
 
         public override void OnInitialize( string tagName, string markup, List<string> tokens )
@@ -26,9 +30,9 @@ namespace com.yesuchum.RockDetective.Lava
 
         public override void OnRender( ILavaRenderContext context, TextWriter result )
         {
-            if ( !this.IsAuthorized( context ) )
+            if ( !( context.GetMergeField( AgentContextKey ) is Rock.AI.Agent.AgentRequestContext ) )
             {
-                result.Write( string.Format( LavaBlockBase.NotAuthorizedMessage, this.SourceElementName ) );
+                result.Write( Refusal( OutsideSkillMessage ) );
                 return;
             }
 
@@ -94,17 +98,5 @@ namespace com.yesuchum.RockDetective.Lava
                 ["reason"] = reason
             }.ToString( Formatting.None );
         }
-
-        #region ILavaSecured
-
-        public string RequiredPermissionKey
-        {
-            get
-            {
-                return "RockDetective";
-            }
-        }
-
-        #endregion
     }
 }
